@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Recife: Museu a Céu Aberto</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;0,900;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body, html { 
+            margin: 0; padding: 0; height: 100%; width: 100%; 
+            font-family: 'Inter', sans-serif; 
+            overflow: hidden; background-color: #f8fafc; 
+        }
+        
+        .font-serif { font-family: 'Playfair Display', Georgia, serif; } 
+        
+        #map { width: 100%; height: 100vh; z-index: 1; }
+        
+        .custom-marker { 
+            background-color: #881337; 
+            border: 2px solid #ffffff; 
+            border-radius: 50%; 
+            box-shadow: 0 3px 6px rgba(0,0,0,0.35); 
+            transition: transform 0.15s ease;
+        }
+        .custom-marker:hover { transform: scale(1.2); }
+        
+        #bottom-sheet { 
+            position: absolute; bottom: -100%; left: 0; width: 100%; height: 75vh; 
+            background: #fff; border-radius: 20px 20px 0 0; 
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.15); 
+            transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+            z-index: 2000; display: flex; flex-direction: column; 
+        }
+        #bottom-sheet.open { bottom: 0; }
+        
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .leaflet-bottom.leaflet-right { bottom: 85px; right: 12px; z-index: 999; } 
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="sr-only">
+        <p>Bem-vindo à plataforma digital interativa Recife: Museu a Céu Aberto. Esta interface destina-se à exploração cartográfica, histórica e literária do patrimônio cultural da capital pernambucana. Através dos menus de acervo e dos marcadores espaciais, o utilizador pode compreender o papel estruturante dos bens tombados e dos espaços de sociabilidade no tecido urbano do Recife Antigo e bairros históricos adjacentes.</p>
+    </div>
+
+    <header class="absolute top-0 left-0 w-full h-16 flex items-center justify-between px-6 z-[1000] bg-white/90 backdrop-blur-md border-b border-slate-200/60">
+        <div class="flex flex-col justify-center">
+            <h1 class="font-serif font-black text-xl tracking-wider text-slate-900 uppercase">Recife</h1>
+            <span class="text-[8.5px] font-bold tracking-[0.25em] text-slate-400 uppercase -mt-1">Museu a Céu Aberto</span>
+        </div>
+        
+        <button onclick="toggleMenu()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-lg text-[11px] font-semibold tracking-wider uppercase flex items-center gap-2 transition shadow-xs active:scale-95">
+            <span class="material-symbols-outlined text-sm">page_info</span>
+            <span>Acervo & Mapas</span>
+        </button>
+    </header>
+
+    <div id="map"></div>
+
+    <div id="menu-backdrop" onclick="toggleMenu()" class="hidden fixed inset-0 bg-slate-900/30 z-[2500] backdrop-blur-xs transition-opacity"></div>
+
+    <div id="side-menu" class="fixed top-0 right-[-100%] w-80 max-w-[85vw] h-full bg-white z-[3000] shadow-2xl transition-all duration-300 flex flex-col p-6 overflow-y-auto hide-scroll" style="right: -100%;">
+        
+        <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+            <h2 class="font-serif font-bold text-lg text-slate-800 tracking-wide">Catálogo</h2>
+            <button onclick="toggleMenu()" class="text-slate-400 hover:text-slate-700 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <div class="mb-5">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Pesquisar</label>
+            <div class="relative flex items-center">
+                <span class="material-symbols-outlined absolute left-3 text-slate-400 text-base pointer-events-none">search</span>
+                <input type="text" id="input-pesquisa" oninput="filtrarGeral()" placeholder="Via, estátua ou prédio..." 
+                       class="w-full bg-slate-100/80 border border-slate-200/60 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-slate-800 transition">
+            </div>
+        </div>
+
+        <div class="mb-5">
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Categorias do Acervo</label>
+                <button id="btn-toggle-cats" onclick="alternarExpansao('cats')" class="text-slate-500 hover:text-slate-900 flex items-center gap-0.5 text-[11px] font-semibold transition" title="Expandir lista completa">
+                    <span id="txt-toggle-cats">Ver mais</span>
+                    <span id="ico-toggle-cats" class="material-symbols-outlined text-sm">expand_more</span>
+                </button>
+            </div>
+            <div id="lista-categorias" class="flex flex-wrap gap-1.5 overflow-hidden transition-all duration-300" style="max-height: 64px;"></div>
+        </div>
+
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tags</label>
+                <button id="btn-toggle-tags" onclick="alternarExpansao('tags')" class="text-slate-500 hover:text-slate-900 flex items-center gap-0.5 text-[11px] font-semibold transition" title="Expandir lista completa">
+                    <span id="txt-toggle-tags">Ver mais</span>
+                    <span id="ico-toggle-tags" class="material-symbols-outlined text-sm">expand_more</span>
+                </button>
+            </div>
+            <div id="lista-tags" class="flex flex-wrap gap-1.5 overflow-hidden transition-all duration-300" style="max-height: 64px;"></div>
+        </div>
+
+        <div class="mt-auto pt-5 border-t border-slate-100">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2.5">Modelo Cartográfico</label>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="mudarMapa('historico')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
+                    <span class="material-symbols-outlined text-base text-amber-800">history_edu</span>
+                    <span>Histórico</span>
+                </button>
+                <button onclick="mudarMapa('voyager')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
+                    <span class="material-symbols-outlined text-base text-sky-700">explore</span>
+                    <span>Turístico</span>
+                </button>
+                <button onclick="mudarMapa('noturno')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
+                    <span class="material-symbols-outlined text-base text-slate-800">dark_mode</span>
+                    <span>Noturno</span>
+                </button>
+                <button onclick="mudarMapa('classico')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
+                    <span class="material-symbols-outlined text-base text-emerald-700">map</span>
+                    <span>Clássico</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="bottom-sheet">
+        <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto my-3"></div>
+        <div class="overflow-y-auto hide-scroll px-8 pb-8 pt-2 flex-grow">
+            
+            <div class="flex justify-between items-start mb-3 gap-4">
+                <h2 id="poi-titulo" class="font-serif text-2xl font-bold text-slate-900 leading-snug">Título</h2>
+                <button onclick="fecharSheet()" class="text-slate-400 hover:text-slate-700 pt-1 transition">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <div id="img-atual" class="w-full h-52 rounded-lg bg-slate-100 bg-cover bg-center mb-5 border border-slate-200/60 shadow-inner"></div>
+            
+            <p id="poi-desc" class="text-xs sm:text-sm text-slate-600 leading-relaxed text-justify font-normal m-0 mb-4">Descrição...</p>
+            
+            <div id="poi-bloco-notas" class="hidden p-3.5 bg-slate-100 border border-slate-200/80 rounded-xl mt-4">
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Notas</span>
+                <p id="poi-texto-notas" class="text-xs text-slate-700 m-0 leading-normal font-medium"></p>
+            </div>
+
+            <!-- Gatilho discreto para categorias/tags -->
+            <div class="mt-4 flex justify-end">
+                <button onclick="alternarTagsPoi()" class="text-slate-400 hover:text-slate-700 flex items-center gap-1 text-xs font-medium transition" title="Ver categorias e tags deste local">
+                    <span class="material-symbols-outlined text-sm">label</span>
+                    <span>Detalhes</span>
+                </button>
+            </div>
+
+            <!-- Contêiner oculto com as badges -->
+            <div id="poi-tags-container" class="hidden mt-3 pt-3 border-t border-slate-100">
+                <div class="flex flex-wrap gap-1.5">
+                    <span id="poi-categoria-badge" class="bg-rose-50 text-rose-800 text-[10px] px-2.5 py-0.5 rounded-full font-medium border border-rose-200 hidden"></span>
+                    <div id="poi-tags-list" class="flex flex-wrap gap-1.5"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="dados.js"></script>
+    <script>
+        const map = L.map('map', { center: [-8.0610, -34.8720], zoom: 15, zoomControl: false });
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        const colecaoMapas = {
+            voyager:   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxNativeZoom: 18, maxZoom: 19 }),
+            historico: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 }),
+            noturno:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 }),
+            classico:  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 18, maxZoom: 19 })
+        };
+
+        let mapaAtivo = colecaoMapas.voyager.addTo(map);
+
+        function mudarMapa(estilo) {
+            map.removeLayer(mapaAtivo);
+            mapaAtivo = colecaoMapas[estilo];
+            mapaAtivo.addTo(map);
+            toggleMenu(); 
+        }
+
+        let markersLayer = L.layerGroup().addTo(map);
+
+        function renderMarkers(lista = pois) {
+            markersLayer.clearLayers();
+            lista.forEach((poi) => {
+                if (!poi.lat || !poi.lng) return; 
+                const markerHtml = `<div class="custom-marker" style="width: 16px; height: 16px;"></div>`;
+                const icon = L.divIcon({ className: 'clear-default', html: markerHtml, iconSize: [16, 16], iconAnchor: [8, 8] });
+                const marker = L.marker([poi.lat, poi.lng], { icon: icon });
+                marker.on('click', () => abrirDetalhesPoi(poi));
+                markersLayer.addLayer(marker);
+            });
+        }
+
+        function toggleMenu() {
+            const menu = document.getElementById('side-menu');
+            const backdrop = document.getElementById('menu-backdrop');
+            if (menu.style.right === '0px') {
+                menu.style.right = '-100%';
+                backdrop.classList.add('hidden');
+            } else {
+                menu.style.right = '0px';
+                backdrop.classList.remove('hidden');
+            }
+        }
+
+        let catSelecionada = null;
+        let tagSelecionada = null;
+        
+        // Estado de expansão das gavetas de filtros
+        const estadoExpansao = { cats: false, tags: false };
+
+        function alternarExpansao(tipo) {
+            const elLista = document.getElementById(tipo === 'cats' ? 'lista-categorias' : 'lista-tags');
+            const elTxt   = document.getElementById(tipo === 'cats' ? 'txt-toggle-cats' : 'txt-toggle-tags');
+            const elIco   = document.getElementById(tipo === 'cats' ? 'ico-toggle-cats' : 'ico-toggle-tags');
+
+            estadoExpansao[tipo] = !estadoExpansao[tipo];
+
+            if (estadoExpansao[tipo]) {
+                elLista.style.maxHeight = '1000px';
+                elTxt.innerText = 'Menos';
+                elIco.innerText = 'expand_less';
+            } else {
+                elLista.style.maxHeight = '64px';
+                elTxt.innerText = 'Ver mais';
+                elIco.innerText = 'expand_more';
+            }
+        }
+
+        function inicializarFiltros() {
+            const divCats = document.getElementById('lista-categorias');
+            const divTags = document.getElementById('lista-tags');
+            const setCats = new Set();
+            const setTags = new Set();
+
+            pois.forEach(p => {
+                if (p.categoria && p.categoria.trim() !== "") setCats.add(p.categoria.trim());
+                if (p.tags && Array.isArray(p.tags)) {
+                    p.tags.forEach(t => { if(t && t.trim() !== "") setTags.add(t.trim()); });
+                }
+            });
+
+            let htmlC = `<button data-val="TODAS_CATS" onclick="clicarCategoria(null)" class="btn-cat bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition">Todas</button>`;
+            setCats.forEach(c => {
+                htmlC += `<button data-val="${c}" onclick="clicarCategoria('${c}')" class="btn-cat bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition">${c}</button>`;
+            });
+            divCats.innerHTML = htmlC;
+
+            let htmlT = `<button data-val="TODAS_TAGS" onclick="clicarTag(null)" class="btn-tag bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition">Todas</button>`;
+            setTags.forEach(t => {
+                htmlT += `<button data-val="${t}" onclick="clicarTag('${t}')" class="btn-tag bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition">${t}</button>`;
+            });
+            divTags.innerHTML = htmlT;
+        }
+
+        function clicarCategoria(valor) {
+            catSelecionada = valor; tagSelecionada = null; 
+            atualizarCoresBotoes(); filtrarGeral();
+        }
+
+        function clicarTag(valor) {
+            tagSelecionada = valor; catSelecionada = null; 
+            atualizarCoresBotoes(); filtrarGeral();
+        }
+
+        function atualizarCoresBotoes() {
+            document.querySelectorAll('.btn-cat').forEach(b => {
+                const ativa = b.getAttribute('data-val') === (catSelecionada || 'TODAS_CATS');
+                b.className = ativa ? "btn-cat bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition" : "btn-cat bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition";
+            });
+            document.querySelectorAll('.btn-tag').forEach(b => {
+                const ativa = b.getAttribute('data-val') === (tagSelecionada || 'TODAS_TAGS');
+                b.className = ativa ? "btn-tag bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition" : "btn-tag bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition";
+            });
+        }
+
+        function filtrarGeral() {
+            const txt = document.getElementById('input-pesquisa').value.toLowerCase();
+            renderMarkers(pois.filter(p => {
+                const okTexto = !txt || (p.titulo && p.titulo.toLowerCase().includes(txt));
+                const okCat   = !catSelecionada || p.categoria === catSelecionada;
+                const okTag   = !tagSelecionada || (p.tags && p.tags.includes(tagSelecionada));
+                return okTexto && okCat && okTag;
+            }));
+        }
+
+        function abrirDetalhesPoi(poi) {
+            document.getElementById('poi-titulo').innerText = poi.titulo;
+            document.getElementById('poi-desc').innerText = poi.descricao || "Descrição indisponível no arquivo.";
+            
+            const divImg = document.getElementById('img-atual');
+            divImg.style.backgroundImage = (poi.imagem && poi.imagem !== "") ? `url('${poi.imagem}')` : `url('https://picsum.photos/seed/recife${poi.id}/600/400')`;
+            
+            const blocoNotas = document.getElementById('poi-bloco-notas');
+            const textoNotas = document.getElementById('poi-texto-notas');
+
+            if (poi.observacao && poi.observacao.trim() !== "") {
+                textoNotas.innerText = poi.observacao;
+                blocoNotas.classList.remove('hidden');
+            } else {
+                blocoNotas.classList.add('hidden');
+            }
+
+            // --- NOVO: preencher categoria e tags do POI ---
+            const catBadge = document.getElementById('poi-categoria-badge');
+            const tagsList = document.getElementById('poi-tags-list');
+            const tagsContainer = document.getElementById('poi-tags-container');
+            
+            // Categoria
+            if (poi.categoria && poi.categoria.trim() !== '') {
+                catBadge.innerText = poi.categoria;
+                catBadge.classList.remove('hidden');
+            } else {
+                catBadge.classList.add('hidden');
+            }
+            
+            // Tags
+            tagsList.innerHTML = '';
+            if (poi.tags && Array.isArray(poi.tags) && poi.tags.length > 0) {
+                poi.tags.forEach(tag => {
+                    if (tag && tag.trim() !== '') {
+                        const span = document.createElement('span');
+                        span.className = 'bg-slate-100 text-slate-600 border border-slate-200 text-[10px] px-2.5 py-0.5 rounded-full font-medium';
+                        span.innerText = tag;
+                        tagsList.appendChild(span);
+                    }
+                });
+            }
+            
+            // Ocultar o contêiner até que o usuário clique no ícone
+            tagsContainer.classList.add('hidden');
+            // ------------------------------------------------
+
+            map.panTo(new L.LatLng(poi.lat - 0.004, poi.lng)); 
+            document.getElementById('bottom-sheet').classList.add('open');
+        }
+
+        function alternarTagsPoi() {
+            const container = document.getElementById('poi-tags-container');
+            container.classList.toggle('hidden');
+        }
+
+        function fecharSheet() {
+            document.getElementById('bottom-sheet').classList.remove('open');
+            document.getElementById('poi-tags-container').classList.add('hidden');
+        }
+
+        inicializarFiltros();
+        renderMarkers();
+    </script>
+</body>
+</html>
