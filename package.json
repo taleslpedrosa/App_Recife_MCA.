@@ -1,0 +1,15 @@
+{
+  "name": "recife-museu-a-ceu-aberto",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./css/tailwind.css -o ./css/tailwind.generated.css --minify",
+    "watch:css": "tailwindcss -i ./css/tailwind.css -o ./css/tailwind.generated.css --watch",
+    "serve": "node server.js"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4"
+  }
+}

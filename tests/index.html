@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suíte de Testes Automatizados | Recife: Museu a Céu Aberto</title>
+    <link rel="stylesheet" href="../css/tailwind.generated.css">
+    <link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="../vendor/leaflet/leaflet.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        pre, code { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-center border-b border-slate-800 pb-5 mb-6">
+            <div>
+                <h1 class="text-2xl font-black text-white tracking-wide flex items-center gap-2">
+                    <span>🧪 Suíte de Testes da Aplicação</span>
+                </h1>
+                <p class="text-xs text-slate-400 mt-1">Recife: Museu a Céu Aberto — Testes Unitários e de Integração</p>
+            </div>
+            <button onclick="executarTodosTestes()" class="bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs uppercase px-4 py-2.5 rounded-xl transition shadow-lg active:scale-95 flex items-center gap-1.5">
+                <span>Executar Novamente</span>
+            </button>
+        </header>
+
+        <!-- Painel de Métricas -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl">
+                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Suítes</span>
+                <p id="metric-suites" class="text-2xl font-black text-white mt-1">0</p>
+            </div>
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl">
+                <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Aprovados</span>
+                <p id="metric-passou" class="text-2xl font-black text-emerald-400 mt-1">0</p>
+            </div>
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl">
+                <span class="text-[10px] uppercase font-bold text-rose-400 tracking-wider">Falhas</span>
+                <p id="metric-falhou" class="text-2xl font-black text-rose-400 mt-1">0</p>
+            </div>
+            <div class="bg-slate-800/80 border border-slate-700/60 p-4 rounded-2xl">
+                <span class="text-[10px] uppercase font-bold text-sky-400 tracking-wider">Tempo</span>
+                <p id="metric-tempo" class="text-2xl font-black text-sky-400 mt-1">0ms</p>
+            </div>
+        </div>
+
+        <!-- Terminal de Logs de Teste -->
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-2xl overflow-hidden">
+            <div class="flex justify-between items-center mb-3 border-b border-slate-800/80 pb-2">
+                <span class="text-xs font-mono text-slate-400 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Terminal de Asserções em Tempo Real
+                </span>
+                <span class="text-[10px] text-slate-500 font-mono">Status: <span id="status-teste" class="text-emerald-400 font-bold">Pronto</span></span>
+            </div>
+            <div id="log-output" class="text-xs font-mono space-y-1.5 max-h-[55vh] overflow-y-auto pr-2 text-slate-300"></div>
+        </div>
+    </div>
+
+    <!-- Dependências da Aplicação para os Testes -->
+    <script src="../js/schema.js"></script>
+    <script src="../js/telemetry.js"></script>
+    <script src="../js/sync.js"></script>
+    <script src="../js/store.js"></script>
+    <script src="../js/i18n.js"></script>
+    <script src="../js/dados.js"></script>
+    <script src="../js/map.js"></script>
+    <script src="../js/routes.js"></script>
+    <script src="../js/sheets.js"></script>
+    <script src="../js/ui.js"></script>
+
+    <!-- Scripts da Suíte de Testes -->
+    <script src="test_runner.js"></script>
+    <script src="unit_tests.js"></script>
+    <script src="integration_tests.js"></script>
+
+    <script>
+        function logVisual(tipo, texto) {
+            const out = document.getElementById('log-output');
+            const div = document.createElement('div');
+            if (tipo === 'suite') {
+                div.className = 'font-bold text-sky-400 pt-3 pb-1 border-t border-slate-800/60';
+                div.textContent = `📦 ${texto}`;
+            } else if (tipo === 'pass') {
+                div.className = 'text-emerald-400 flex items-center gap-1.5 pl-3';
+                div.innerHTML = `<span>✅</span> <span>${texto}</span>`;
+            } else if (tipo === 'fail') {
+                div.className = 'text-rose-400 font-bold flex items-center gap-1.5 pl-3 bg-rose-950/30 p-1 rounded';
+                div.innerHTML = `<span>❌</span> <span>${texto}</span>`;
+            } else {
+                div.className = 'text-slate-400';
+                div.textContent = texto;
+            }
+            out.appendChild(div);
+            out.scrollTop = out.scrollHeight;
+        }
+
+        function executarTodosTestes() {
+            const out = document.getElementById('log-output');
+            out.innerHTML = '';
+            
+            const runner = new TestRunner();
+            const originalSuite = runner.suite.bind(runner);
+            const originalIsEqual = runner.isEqual.bind(runner);
+            const originalIsTrue = runner.isTrue.bind(runner);
+            const originalIsFalse = runner.isFalse.bind(runner);
+
+            runner.suite = (nome, fn) => {
+                logVisual('suite', nome);
+                originalSuite(nome, fn);
+            };
+            runner.isEqual = (obtido, esperado, msg) => {
+                const passou = obtido === esperado;
+                logVisual(passou ? 'pass' : 'fail', msg + (passou ? '' : ` (Esperado: ${esperado}, Obtido: ${obtido})`));
+                originalIsEqual(obtido, esperado, msg);
+            };
+            runner.isTrue = (cond, msg) => {
+                logVisual(cond ? 'pass' : 'fail', msg);
+                originalIsTrue(cond, msg);
+            };
+            runner.isFalse = (cond, msg) => {
+                logVisual(!cond ? 'pass' : 'fail', msg);
+                originalIsFalse(cond, msg);
+            };
+
+            const t0 = performance.now();
+            executarTestesUnitarios(runner);
+            executarTestesIntegracao(runner);
+            const t1 = performance.now();
+
+            document.getElementById('metric-suites').innerText = runner.totalSuites;
+            document.getElementById('metric-passou').innerText = runner.totalPassou;
+            document.getElementById('metric-falhou').innerText = runner.totalFalhou;
+            document.getElementById('metric-tempo').innerText = Math.round(t1 - t0) + 'ms';
+            
+            const statusEl = document.getElementById('status-teste');
+            if (runner.totalFalhou === 0) {
+                statusEl.innerText = "TODOS APROVADOS 🎉";
+                statusEl.className = "text-emerald-400 font-bold";
+            } else {
+                statusEl.innerText = `${runner.totalFalhou} FALHAS ❌`;
+                statusEl.className = "text-rose-400 font-bold";
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', executarTodosTestes);
+    </script>
+</body>
+</html>

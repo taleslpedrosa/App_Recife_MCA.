@@ -56,7 +56,7 @@ const pois = [
         lat: -8.061317,
         lng: -34.871539,
         descricao: "Centro cultural dedicado à difusão, pesquisa, salvaguarda e formação relacionadas ao Frevo. O equipamento ocupa o antigo prédio da Western Telegraph Company que funcionou até a década de 1970, desempenhando um importante papel no desenvolvimento da cidade por conecta-la diretamente a Europa aravés de cabos telegráficos submarinos.",
-        imagem: ["imagens/Paço_do_Frevo_1.jpg", "imagens/Paço_do_Frevo_2.jpg"],"
+        imagem: ["imagens/paco_do_frevo_1.jpg", "imagens/paco_do_frevo_2.jpg"],
         tags: ["#Museu", "#Recife Antigo", "#Frevo", "#Patrimoniolmaterial", "#Western Telegraph", "#EstiloEclético"],
         categoria: "Centro Cultural",
         observacao: null
@@ -625,6 +625,11 @@ const roteiros = {
     poesia: { 
         name: "Circuito da Poesia", 
         color: "#0277bd", 
-        routeIds: [11, 12, 13, 29, 30] 
+        routeIds: [11, 12, 13, 24, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41]
+    },
+    sagrado: {
+        name: "Recife Sagrado",
+        color: "#0284c7",
+        routeIds: [4, 8, 9, 18, 53, 23, 26, 27, 20, 54, 21] 
     }
 };

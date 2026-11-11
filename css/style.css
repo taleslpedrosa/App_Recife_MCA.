@@ -1,0 +1,252 @@
+/* Estilos Globais e Tipografia */
+body, html { 
+    margin: 0; 
+    padding: 0; 
+    height: 100%; 
+    width: 100%; 
+    font-family: 'Inter', sans-serif; 
+    overflow: hidden; 
+    background-color: #f8fafc; 
+    -webkit-tap-highlight-color: transparent;
+}
+
+.font-serif { 
+    font-family: 'Playfair Display', Georgia, serif; 
+} 
+
+#map { 
+    width: 100%; 
+    height: 100vh; 
+    z-index: 1; 
+}
+
+#map.map-high-contrast .leaflet-tile-pane {
+    filter: grayscale(1) contrast(1.45);
+}
+
+/* Marcadores Personalizados no Mapa */
+.custom-marker { 
+    background-color: #881337; 
+    border: 2px solid #ffffff; 
+    border-radius: 50%; 
+    box-shadow: 0 3px 6px rgba(0,0,0,0.35); 
+    transition: transform 0.15s ease; 
+}
+.custom-marker:hover { 
+    transform: scale(1.15); 
+}
+
+.marker-number { 
+    background-color: #881337; 
+    color: white; 
+    border: 2.5px solid white; 
+    border-radius: 50%; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-weight: 700; 
+    font-size: 13px; 
+    font-family: 'Inter', sans-serif; 
+}
+
+/* Painel de Detalhes (Bottom Sheet) */
+#bottom-sheet { 
+    position: absolute; 
+    bottom: -100%; 
+    left: 0; 
+    width: 100%; 
+    height: 75vh; 
+    max-height: 85vh; 
+    background: #ffffff; 
+    border-radius: 20px 20px 0 0; 
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.15); 
+    transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+    z-index: 2000; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+#bottom-sheet.open { 
+    bottom: 0; 
+}
+
+/* Ocultar barra de rolagem mantendo a navegação por toque */
+.hide-scroll::-webkit-scrollbar { 
+    display: none; 
+}
+.hide-scroll { 
+    -ms-overflow-style: none; 
+    scrollbar-width: none; 
+}
+
+/* Controles Leaflet */
+.leaflet-bottom.leaflet-right { 
+    bottom: 85px; 
+    right: 12px; 
+    z-index: 999; 
+} 
+.leaflet-control-attribution {
+    font-size: 8.5px !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(4px);
+    border-radius: 6px;
+    padding: 2px 6px !important;
+    color: #64748b;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+.leaflet-control-attribution a {
+    color: #334155;
+    text-decoration: none;
+}
+.leaflet-control-attribution a:hover {
+    text-decoration: underline;
+}
+
+/* Melhorias para toque em dispositivos móveis */
+@media (max-width: 768px) {
+    header > div:first-child span {
+        display: none;
+    }
+    header h1 {
+        font-size: 1rem;
+    }
+    #navbar-language .navbar-lang {
+        min-width: 36px;
+        min-height: 36px;
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+    }
+    #btn-auth-user {
+        min-width: 44px;
+        justify-content: center;
+        padding-left: 0.4rem;
+        padding-right: 0.4rem;
+    }
+    button, .btn-cat, .btn-tag {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .marker-number, .custom-marker {
+        transform-origin: center;
+    }
+}
+
+/* Estilos para o Carrossel de Imagens */
+.carousel-container {
+    position: relative;
+    width: 100%;
+    height: 230px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    background-color: #f1f5f9;
+}
+
+.carousel-slide {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    display: none;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+.carousel-slide.active {
+    display: block;
+}
+
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 16px;
+    z-index: 10;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.carousel-btn.prev { left: 10px; }
+.carousel-btn.next { right: 10px; }
+.carousel-btn:hover { background: rgba(15, 23, 42, 0.85); }
+.carousel-btn:active { transform: translateY(-50%) scale(0.92); }
+
+.carousel-indicators {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 11;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(4px);
+    padding: 4px 8px;
+    border-radius: 9999px;
+}
+
+.dot {
+    width: 7px;
+    height: 7px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dot.active { 
+    background: #ffffff; 
+    transform: scale(1.3); 
+}
+
+@keyframes fadeIn {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+/* Pulsação do Audioguia em Execução */
+.audio-playing-pulse {
+    animation: pulseAudio 1.6s infinite ease-in-out;
+}
+
+@keyframes pulseAudio {
+    0% {
+        box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(225, 29, 72, 0);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+        transform: scale(1);
+    }
+}
+
+/* Área de Arraste (Drag Handle) no Painel */
+#sheet-drag-handle {
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Transições e Foco para a Área de Comentários / Diário de Campo */
+#poi-comentario-input {
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#poi-comentario-input:focus {
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
+}
+
+#poi-nota-status {
+    animation: fadeIn 0.3s ease;
+}

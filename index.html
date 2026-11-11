@@ -3,150 +3,581 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="Mapa interativo com pontos de interesse históricos e culturais do Recife. Explore museus, igrejas, praças e muito mais.">
+    <meta name="theme-color" content="#881337">
+    
+    <!-- Open Graph para redes sociais -->
+    <meta property="og:title" content="Recife: Museu a Céu Aberto">
+    <meta property="og:description" content="Explore a história e cultura do Recife através de um mapa interativo.">
+    <meta property="og:type" content="website">
+
+    <!-- Content Security Policy (CSP) Defesa em Profundidade -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://docs.google.com https://*.googleusercontent.com https://*.openstreetmap.fr https://tile.openstreetmap.org;" />
+
     <title>Recife: Museu a Céu Aberto</title>
     
+    <!-- Tipografia e Ícones -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;0,900;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,900;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" />
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <style>
-        body, html { 
-            margin: 0; padding: 0; height: 100%; width: 100%; 
-            font-family: 'Inter', sans-serif; 
-            overflow: hidden; background-color: #f8fafc; 
-        }
-        
-        .font-serif { font-family: 'Playfair Display', Georgia, serif; } 
-        
-        #map { width: 100%; height: 100vh; z-index: 1; }
-        
-        .custom-marker { 
-            background-color: #881337; 
-            border: 2px solid #ffffff; 
-            border-radius: 50%; 
-            box-shadow: 0 3px 6px rgba(0,0,0,0.35); 
-            transition: transform 0.15s ease;
-        }
-        .custom-marker:hover { transform: scale(1.2); }
-        
-        #bottom-sheet { 
-            position: absolute; bottom: -100%; left: 0; width: 100%; height: 75vh; 
-            background: #fff; border-radius: 20px 20px 0 0; 
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.15); 
-            transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
-            z-index: 2000; display: flex; flex-direction: column; 
-        }
-        #bottom-sheet.open { bottom: 0; }
-        
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        .leaflet-bottom.leaflet-right { bottom: 85px; right: 12px; z-index: 999; } 
-    </style>
+    <!-- Framework CSS e Leaflet (Versões Fixas e Seguras) -->
+    <link rel="stylesheet" href="css/tailwind.generated.css">
+    <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+
+    <!-- Estilos Customizados e PWA -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="imagens/icone-192.png">
+    <link rel="icon" type="image/png" href="imagens/icone-192.png">
 </head>
 <body class="text-slate-800">
 
-    <div class="sr-only">
-        <p>Bem-vindo à plataforma digital interativa Recife: Museu a Céu Aberto. Esta interface destina-se à exploração cartográfica, histórica e literária do patrimônio cultural da capital pernambucana. Através dos menus de acervo e dos marcadores espaciais, o utilizador pode compreender o papel estruturante dos bens tombados e dos espaços de sociabilidade no tecido urbano do Recife Antigo e bairros históricos adjacentes.</p>
-    </div>
-
-    <header class="absolute top-0 left-0 w-full h-16 flex items-center justify-between px-6 z-[1000] bg-white/90 backdrop-blur-md border-b border-slate-200/60">
+    <!-- Top Bar / Cabeçalho -->
+    <header class="absolute top-0 left-0 w-full h-16 flex items-center justify-between px-3 sm:px-6 z-[1000] bg-white/90 backdrop-blur-md border-b border-slate-200/60">
         <div class="flex flex-col justify-center">
             <h1 class="font-serif font-black text-xl tracking-wider text-slate-900 uppercase">Recife</h1>
             <span class="text-[8.5px] font-bold tracking-[0.25em] text-slate-400 uppercase -mt-1">Museu a Céu Aberto</span>
         </div>
         
-        <button onclick="toggleMenu()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-lg text-[11px] font-semibold tracking-wider uppercase flex items-center gap-2 transition shadow-xs active:scale-95">
-            <span class="material-symbols-outlined text-sm">page_info</span>
-            <span>Acervo & Mapas</span>
-        </button>
+        <div class="flex items-center">
+            <button onclick="toggleMenu()" aria-label="Abrir Catálogo" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-lg text-[11px] font-semibold tracking-wider uppercase flex items-center gap-2 transition shadow-xs active:scale-95">
+                <span class="material-symbols-outlined text-sm">page_info</span>
+                <span data-i18n="catalogoTitulo">Catálogo</span>
+            </button>
+        </div>
     </header>
 
+    <!-- Contador de Resultados Visíveis -->
+    <div id="contador-resultados" class="absolute top-20 left-4 z-[1000] bg-slate-900/90 backdrop-blur text-white px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-md transition-all">
+        Carregando acervo...
+    </div>
+
+    <!-- Botão de Sair do Modo Rota -->
+    <button id="btn-limpar-rota" onclick="limparRota()" aria-label="Limpar roteiro e retornar ao mapa geral" class="hidden absolute top-20 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-2.5 rounded-full shadow-lg z-[2000] text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 active:scale-95 transition">
+        <span class="material-symbols-outlined text-sm" aria-hidden="true">close</span> Sair da Rota
+    </button>
+
+    <!-- Indicador de Orientação Norte -->
+    <div class="absolute bottom-40 right-3 z-[1000] bg-white/90 backdrop-blur border border-slate-200 shadow-sm rounded-lg p-1.5 flex flex-col items-center justify-center pointer-events-none">
+        <span class="text-[10px] font-black text-red-800 mb-[-4px]">N</span>
+        <span class="material-symbols-outlined text-slate-700 text-xl" style="transform: rotate(0deg);">navigation</span>
+    </div>
+
+    <!-- Container do Mapa -->
     <div id="map"></div>
 
+    <!-- Backdrop do Menu Lateral -->
     <div id="menu-backdrop" onclick="toggleMenu()" class="hidden fixed inset-0 bg-slate-900/30 z-[2500] backdrop-blur-xs transition-opacity"></div>
 
+    <!-- Menu Lateral (Catálogo, Filtros e Roteiros) -->
     <div id="side-menu" class="fixed top-0 right-[-100%] w-80 max-w-[85vw] h-full bg-white z-[3000] shadow-2xl transition-all duration-300 flex flex-col p-6 overflow-y-auto hide-scroll" style="right: -100%;">
         
-        <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+        <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
             <h2 class="font-serif font-bold text-lg text-slate-800 tracking-wide">Catálogo</h2>
-            <button onclick="toggleMenu()" class="text-slate-400 hover:text-slate-700 transition">
+            
+            <button onclick="toggleMenu()" aria-label="Fechar catálogo" class="text-slate-400 hover:text-slate-700 transition">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
 
+        <div class="mb-4">
+            <button type="button" onclick="abrirModalPassaporte()" aria-label="Abrir Passaporte" class="w-full p-2.5 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 rounded-xl shadow-xs flex items-center justify-between text-left transition">
+                <span class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-800 text-lg">verified</span>
+                    <span class="text-xs font-bold text-amber-950 uppercase tracking-wider" data-i18n="passaporteTitulo">Passaporte</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span id="passaporte-contador" class="text-[9.5px] font-extrabold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-full">0/54</span>
+                    <span class="material-symbols-outlined text-amber-800 text-base">chevron_right</span>
+                </span>
+            </button>
+        </div>
+
+        <!-- Roteiros sugeridos -->
+        <section class="mb-5">
+            <button type="button" onclick="alternarSecaoMenu('roteiros')" aria-expanded="false" aria-controls="painel-roteiros" class="w-full flex items-center justify-between mb-2 text-left">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest" data-i18n="roteirosSugeridos">Roteiros Sugeridos</span>
+                <span id="icone-roteiros" class="material-symbols-outlined text-slate-500 text-base transition-transform">expand_more</span>
+            </button>
+            <div id="painel-roteiros" class="hidden flex flex-col gap-2.5">
+                
+                <button onclick="ativarRota('origens')" aria-label="Ativar rota Origens do Recife" class="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl p-2.5 flex items-center gap-3 transition active:scale-95 text-left group">
+                    <div class="w-7 h-7 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 group-hover:bg-amber-200 transition">
+                        <span class="material-symbols-outlined text-[15px]" aria-hidden="true">sailing</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-800">Origens do Recife</h3>
+                        <p class="text-[9px] text-slate-500 mt-0.5 font-medium uppercase tracking-wide">Onde a cidade começou</p>
+                    </div>
+                </button>
+
+                <button onclick="ativarRota('sagrado')" aria-label="Ativar rota Recife Sagrado" class="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl p-2.5 flex items-center gap-3 transition active:scale-95 text-left group">
+                    <div class="w-7 h-7 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center shrink-0 group-hover:bg-sky-200 transition">
+                        <span class="material-symbols-outlined text-[15px]" aria-hidden="true">church</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-800">Recife Sagrado</h3>
+                        <p class="text-[9px] text-slate-500 mt-0.5 font-medium uppercase tracking-wide">Templos e história da fé</p>
+                    </div>
+                </button>
+
+                <button onclick="ativarRota('poesia')" aria-label="Ativar rota Circuito da Poesia" class="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl p-2.5 flex items-center gap-3 transition active:scale-95 text-left group">
+                    <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 transition">
+                        <span class="material-symbols-outlined text-[15px]" aria-hidden="true">history_edu</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-800">Circuito da Poesia</h3>
+                        <p class="text-[9px] text-slate-500 mt-0.5 font-medium uppercase tracking-wide">Monumentos literários</p>
+                    </div>
+                </button>
+
+            </div>
+        </section>
+
+        <div class="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <button id="btn-auth-user" type="button" onclick="abrirModalAuth()" aria-label="Abrir Perfil local" class="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left text-[10px] font-semibold text-slate-700 transition hover:bg-slate-100">
+                <span class="flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm">badge</span>
+                    <span id="txt-auth-username" data-i18n="perfilLocal">Perfil local</span>
+                </span>
+                <span class="material-symbols-outlined text-sm">chevron_right</span>
+            </button>
+            <p class="mt-2 text-[9px] leading-relaxed text-slate-500" data-i18n="perfilLocalDesc">Seu perfil e suas visitas ficam salvos somente neste dispositivo. A conexão com o Google ainda não está disponível.</p>
+        </div>
+
         <div class="mb-5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Pesquisar</label>
+            <label class="mb-2 block text-[10px] font-bold uppercase tracking-widest text-slate-500" data-i18n="idioma">Idioma</label>
+            <div id="navbar-language" class="flex w-fit items-center rounded-lg border border-slate-200/60 bg-slate-100 p-0.5" role="group" aria-label="Selecionar idioma">
+                <button onclick="mudarIdioma('pt')" id="btn-lang-pt" aria-label="Português" aria-pressed="true" class="navbar-lang px-2 py-1 text-[10px] font-bold rounded bg-white text-slate-800 shadow-xs transition">PT</button>
+                <button onclick="mudarIdioma('en')" id="btn-lang-en" aria-label="English" aria-pressed="false" class="navbar-lang px-2 py-1 text-[10px] font-medium text-slate-500 hover:text-slate-800 transition">EN</button>
+                <button onclick="mudarIdioma('es')" id="btn-lang-es" aria-label="Español" aria-pressed="false" class="navbar-lang px-2 py-1 text-[10px] font-medium text-slate-500 hover:text-slate-800 transition">ES</button>
+            </div>
+        </div>
+
+        <!-- Campo de Pesquisa -->
+        <div class="mb-5 pt-5 border-t border-slate-100">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Pesquisar por nome</label>
             <div class="relative flex items-center">
                 <span class="material-symbols-outlined absolute left-3 text-slate-400 text-base pointer-events-none">search</span>
-                <input type="text" id="input-pesquisa" oninput="filtrarGeral()" placeholder="Via, estátua ou prédio..." 
+                <input type="text" id="input-pesquisa" oninput="filtrarGeralComDebounce()" placeholder="Via, estátua ou prédio..." 
                        class="w-full bg-slate-100/80 border border-slate-200/60 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-slate-800 transition">
             </div>
         </div>
 
+        <!-- Filtro por Época / Linha do Tempo Urbana -->
+        <section class="mb-5">
+            <button type="button" onclick="alternarSecaoMenu('epocas')" aria-expanded="false" aria-controls="painel-epocas" class="w-full flex items-center justify-between mb-2 text-left">
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest" data-i18n="epocaHistorica">Época Histórica</span>
+                <span id="icone-epocas" class="material-symbols-outlined text-slate-500 text-base transition-transform">expand_more</span>
+            </button>
+            <div id="painel-epocas" class="hidden">
+                <div class="flex flex-col gap-1.5 max-h-56 overflow-y-auto hide-scroll" id="filtro-epoca-container"></div>
+            </div>
+        </section>
+
+        <!-- Filtro por Categorias -->
         <div class="mb-5">
             <div class="flex justify-between items-center mb-2">
-                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Categorias do Acervo</label>
-                <button id="btn-toggle-cats" onclick="alternarExpansao('cats')" class="text-slate-500 hover:text-slate-900 flex items-center gap-0.5 text-[11px] font-semibold transition" title="Expandir lista completa">
-                    <span id="txt-toggle-cats">Ver mais</span>
-                    <span id="ico-toggle-cats" class="material-symbols-outlined text-sm">expand_more</span>
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Categorias</label>
+                <button onclick="alternarExpansao('cats')" class="text-slate-500 hover:text-slate-900 flex items-center gap-0.5 text-[11px] font-semibold transition">
+                    <span id="txt-toggle-cats">Ver mais</span><span id="ico-toggle-cats" class="material-symbols-outlined text-sm">expand_more</span>
                 </button>
             </div>
             <div id="lista-categorias" class="flex flex-wrap gap-1.5 overflow-hidden transition-all duration-300" style="max-height: 64px;"></div>
         </div>
 
-        <div class="mb-6">
-            <div class="flex justify-between items-center mb-2">
-                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tags</label>
-                <button id="btn-toggle-tags" onclick="alternarExpansao('tags')" class="text-slate-500 hover:text-slate-900 flex items-center gap-0.5 text-[11px] font-semibold transition" title="Expandir lista completa">
-                    <span id="txt-toggle-tags">Ver mais</span>
-                    <span id="ico-toggle-tags" class="material-symbols-outlined text-sm">expand_more</span>
-                </button>
+        <!-- Modelo Cartográfico -->
+        <div class="mt-auto pt-5 border-t border-slate-100">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2.5" data-i18n="modeloCartografico">Modelo Cartográfico</label>
+            <div class="grid grid-cols-1 gap-2">
+                <button aria-label="Visual turístico" onclick="mudarMapa('voyager')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition"><span class="material-symbols-outlined text-base text-sky-700">explore</span><span>Turístico</span></button>
+                <button aria-label="Visual clássico" onclick="mudarMapa('classico')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition"><span class="material-symbols-outlined text-base text-emerald-700">map</span><span>Clássico</span></button>
+                <button aria-label="Visual de alto contraste" onclick="mudarMapa('altoContraste')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition"><span class="material-symbols-outlined text-base text-slate-900">contrast</span><span data-i18n="mapaAltoContraste">Alto contraste</span></button>
             </div>
-            <div id="lista-tags" class="flex flex-wrap gap-1.5 overflow-hidden transition-all duration-300" style="max-height: 64px;"></div>
+        </div>
+        
+        <!-- Acesso ao Painel da Curadoria / Inteligência -->
+        <div id="acesso-curadoria" class="mt-4 pt-3 border-t border-slate-100 hidden">
+            <button onclick="abrirDashboardCuradoria()" aria-label="Painel de Inteligência da Curadoria" class="w-full flex items-center justify-center gap-2 text-[11px] font-bold text-amber-950 bg-amber-100/70 hover:bg-amber-100 transition py-2 rounded-lg border border-amber-300/70 shadow-xs">
+                <span class="material-symbols-outlined text-sm text-amber-800">analytics</span>
+                Painel da Curadoria & Dados
+            </button>
         </div>
 
-        <div class="mt-auto pt-5 border-t border-slate-100">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2.5">Modelo Cartográfico</label>
-            <div class="grid grid-cols-2 gap-2">
-                <button onclick="mudarMapa('historico')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
-                    <span class="material-symbols-outlined text-base text-amber-800">history_edu</span>
-                    <span>Histórico</span>
-                </button>
-                <button onclick="mudarMapa('voyager')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
-                    <span class="material-symbols-outlined text-base text-sky-700">explore</span>
-                    <span>Turístico</span>
-                </button>
-                <button onclick="mudarMapa('noturno')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
-                    <span class="material-symbols-outlined text-base text-slate-800">dark_mode</span>
-                    <span>Noturno</span>
-                </button>
-                <button onclick="mudarMapa('classico')" class="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-1.5 transition">
-                    <span class="material-symbols-outlined text-base text-emerald-700">map</span>
-                    <span>Clássico</span>
-                </button>
-            </div>
+        <!-- Botão Sobre -->
+        <div class="mt-2 pb-2">
+            <button onclick="abrirSobre()" aria-label="Sobre o Projeto" class="w-full flex items-center justify-center gap-2 text-[11px] font-semibold text-slate-400 hover:text-slate-700 transition py-2 rounded-lg hover:bg-slate-50">
+                <span class="material-symbols-outlined text-sm">info</span>
+                Sobre
+            </button>
         </div>
 
     </div>
 
-    <div id="bottom-sheet">
-        <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto my-3"></div>
-        <div class="overflow-y-auto hide-scroll px-8 pb-8 pt-2 flex-grow">
+    <!-- Detalhes do Passaporte -->
+    <div id="modal-passaporte" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-labelledby="modal-passaporte-titulo" aria-hidden="true">
+        <button type="button" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="fecharModalPassaporte()" aria-label="Fechar Passaporte"></button>
+        <div class="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <button type="button" onclick="fecharModalPassaporte()" aria-label="Fechar Passaporte" class="absolute right-4 top-4 text-slate-400 transition hover:text-slate-700">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="mb-5 text-center">
+                <div class="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-800">
+                    <span class="material-symbols-outlined text-2xl">verified</span>
+                </div>
+                <h3 id="modal-passaporte-titulo" class="font-serif text-lg font-bold text-slate-900" data-i18n="passaporteTitulo">Passaporte</h3>
+                <p class="mt-1 text-[11px] text-slate-500" data-i18n="passaporteDesc">Acompanhe seus locais visitados e o progresso nos roteiros.</p>
+            </div>
+            <div class="mb-5 flex items-center justify-between text-xs font-semibold text-amber-950">
+                <span data-i18n="locaisCarimbados">Locais carimbados</span>
+                <span id="passaporte-contador-detalhe">0/54</span>
+            </div>
+            <div class="mb-5 h-2 w-full overflow-hidden rounded-full bg-amber-100">
+                <div id="passaporte-barra" class="h-full rounded-full bg-amber-600 transition-all duration-500" style="width: 0%;"></div>
+            </div>
+            <div id="passaporte-roteiros-lista" class="max-h-56 space-y-1 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- Modal Sobre o Projeto -->
+    <div id="modal-sobre" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onclick="fecharSobre()"></div>
+        <div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-7 overflow-hidden">
+            <button onclick="fecharSobre()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="text-center mb-5">
+                <div class="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200">
+                    <span class="material-symbols-outlined text-2xl text-slate-400">account_balance</span>
+                </div>
+                <h3 class="font-serif font-bold text-xl text-slate-900 leading-tight">Tales Pedrosa</h3>
+                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Historiador & Pesquisador</p>
+            </div>
+            <div class="text-[11px] text-slate-600 space-y-3 leading-relaxed text-justify hide-scroll overflow-y-auto max-h-[45vh] pr-1">
+                <p>A cartografia digital interativa <strong>Recife: Museu a Céu Aberto</strong> nasce da intersecção entre a pesquisa em história urbana e o uso de tecnologias de análise de dados espaciais.</p>
+                <p>Os Pontos de Interesse catalogados e os roteiros propostos são fruto de rigorosa curadoria, visando mapear a relação entre o espaço, as pessoas e a história, identificando as transformações da cidade, suas rotas literárias, lugares de memória, patrimônios sagrados e espaços de sociabilidade.</p>
+                <p>O objetivo é servir como uma ferramenta acessível tanto para o turismo cultural e o engajamento da sociedade civil, quanto como instrumento de apoio pedagógico e análise de políticas públicas ligadas à diversidade e aos direitos culturais no espaço urbano.</p>
+                <div class="pt-3 mt-3 border-t border-slate-100 text-[9px] text-slate-400 text-center font-medium">
+                    Desenvolvido com integração em OpenStreetMap e tecnologias abertas de Web Mapping.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Certificado do Passaporte Cultural (Conclusão de Roteiro) -->
+    <div id="modal-certificado" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="fecharCertificado()"></div>
+        <div class="relative bg-gradient-to-b from-amber-50 via-white to-amber-50/40 w-full max-w-md rounded-2xl shadow-2xl p-6 border-2 border-amber-300 overflow-hidden text-center">
+            <button onclick="fecharCertificado()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="w-16 h-16 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner border border-amber-300">
+                <span class="material-symbols-outlined text-3xl">workspace_premium</span>
+            </div>
+            <span class="text-[9px] font-bold text-amber-800 uppercase tracking-widest block mb-1">Passaporte Cultural do Recife</span>
+            <h3 class="font-serif font-black text-2xl text-slate-900 leading-tight mb-2" id="cert-roteiro-nome">Roteiro Concluído!</h3>
+            <p class="text-xs text-slate-600 mb-4 px-2" id="cert-mensagem">Parabéns por explorar e vivenciar a memória e o patrimônio histórico do Recife.</p>
             
-            <div class="flex justify-between items-start mb-3 gap-4">
-                <h2 id="poi-titulo" class="font-serif text-2xl font-bold text-slate-900 leading-snug">Título</h2>
-                <button onclick="fecharSheet()" class="text-slate-400 hover:text-slate-700 pt-1 transition">
+            <div class="p-3 bg-amber-100/50 border border-amber-200/80 rounded-xl mb-4 text-[10px] text-amber-950 font-medium">
+                <div class="flex justify-between items-center py-0.5">
+                    <span class="text-slate-500">Explorador:</span>
+                    <span class="font-bold">Cidadão da Memória</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5">
+                    <span class="text-slate-500">Data de Conclusão:</span>
+                    <span class="font-bold" id="cert-data">Hoje</span>
+                </div>
+                <div class="flex justify-between items-center py-0.5">
+                    <span class="text-slate-500">Autenticação:</span>
+                    <span class="font-mono text-[9px] text-amber-800">REC-MCA-PASSAPORTE</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="compartilharCertificado()" class="flex-1 bg-amber-800 hover:bg-amber-900 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md">
+                    <span class="material-symbols-outlined text-sm">share</span> Compartilhar Conquista
+                </button>
+                <button onclick="fecharCertificado()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Curadoria Colaborativa -->
+    <div id="modal-colaborar" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="fecharModalColaborar()"></div>
+        <div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 overflow-hidden">
+            <button onclick="fecharModalColaborar()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="flex items-center gap-2 mb-3">
+                <span class="material-symbols-outlined text-amber-800 text-2xl">history_edu</span>
+                <h3 class="font-serif font-bold text-lg text-slate-900">Colaborar com a Curadoria</h3>
+            </div>
+            <p class="text-xs text-slate-500 mb-4 leading-relaxed">Envie fotografias antigas, fontes bibliográficas ou relatos orais sobre este local histórico para o acervo de pesquisa.</p>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Seu Nome / Identificação</label>
+                    <input type="text" id="colaborar-nome" placeholder="Ex: Maria da Silva" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 outline-none focus:border-slate-800">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Tipo de Contribuição</label>
+                    <select id="colaborar-tipo" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 outline-none focus:border-slate-800">
+                        <option value="Fotografia Histórica">Fotografia Histórica / Imagem de Época</option>
+                        <option value="Memória ou Relato Oral">Memória ou Relato Oral da Visita</option>
+                        <option value="Correção ou Complemento Histórico">Correção ou Complemento Histórico</option>
+                        <option value="Outro">Outro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Seu Relato / Descrição</label>
+                    <textarea id="colaborar-mensagem" rows="3" placeholder="Descreva os detalhes da sua memória, fotógrafo, ano aproximado ou link das imagens..." class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 outline-none focus:border-slate-800 resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-5">
+                <button onclick="confirmarEnvioColaboracao()" class="flex-1 bg-amber-800 hover:bg-amber-900 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md">
+                    <span class="material-symbols-outlined text-sm">send</span> Enviar Contribuição
+                </button>
+                <button onclick="fecharModalColaborar()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal do Perfil Local -->
+    <div id="modal-auth" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-label="Perfil local" aria-hidden="true">
+        <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="fecharModalAuth()"></div>
+        <div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 overflow-hidden">
+            <button onclick="fecharModalAuth()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+
+            <!-- Perfil local ainda não configurado -->
+            <div id="auth-painel-naologado">
+                <div class="text-center mb-5">
+                    <div class="w-12 h-12 bg-slate-50 text-slate-700 rounded-full flex items-center justify-center mx-auto mb-2 border border-slate-200">
+                        <span class="material-symbols-outlined text-2xl">badge</span>
+                    </div>
+                    <h3 class="font-serif font-bold text-lg text-slate-900" data-i18n="perfilLocal">Perfil local</h3>
+                    <p class="text-[11px] text-slate-500 mt-1" data-i18n="perfilLocalDesc">Seu perfil e suas visitas ficam salvos somente neste dispositivo. A conexão com o Google ainda não está disponível.</p>
+                </div>
+
+                <div class="space-y-2.5">
+                    <button onclick="abrirConfiguracaoPerfilLocal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2.5 shadow-xs transition active:scale-95">
+                        <span class="material-symbols-outlined text-base">badge</span>
+                        <span data-i18n="configurarPerfilLocal">Configurar perfil local</span>
+                    </button>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-100 text-center">
+                    <button onclick="fecharModalAuth()" class="text-[11px] text-slate-400 hover:text-slate-600 font-medium transition">
+                        Continuar explorando sem login
+                    </button>
+                </div>
+            </div>
+
+            <!-- Perfil local configurado -->
+            <div id="auth-painel-logado" class="hidden">
+                <div class="text-center mb-4">
+                    <div class="w-14 h-14 bg-slate-50 text-slate-700 rounded-full flex items-center justify-center mx-auto mb-2 border border-slate-200">
+                        <span class="material-symbols-outlined text-3xl">badge</span>
+                    </div>
+                    <h3 class="font-serif font-bold text-lg text-slate-900" data-i18n="perfilLocal">Perfil local</h3>
+                    <p class="text-[11px] text-slate-500" data-i18n="perfilLocalDesc">Seu perfil e suas visitas ficam salvos somente neste dispositivo. A conexão com o Google ainda não está disponível.</p>
+                    <span id="auth-user-tipo" class="inline-block mt-2 bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">Visitante</span>
+                </div>
+
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <button onclick="abrirConfiguracaoPerfilLocal()" class="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                        <span class="material-symbols-outlined text-sm">edit</span><span data-i18n="editarPerfil">Editar perfil</span>
+                    </button>
+                    <button onclick="limparDadosLocaisMvp()" class="w-full bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                        <span class="material-symbols-outlined text-sm">delete</span><span data-i18n="apagarDadosLocais">Apagar meus dados locais</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Onboarding (Morador vs. Turista) -->
+    <div id="modal-onboarding" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="fecharModalOnboarding()"></div>
+        <div class="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 overflow-hidden">
+            <button onclick="fecharModalOnboarding()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="text-center mb-4">
+                <div class="w-12 h-12 bg-amber-50 text-amber-800 rounded-full flex items-center justify-center mx-auto mb-2 border border-amber-200">
+                    <span class="material-symbols-outlined text-2xl">badge</span>
+                </div>
+                <h3 class="font-serif font-bold text-lg text-slate-900">Seu Perfil de Visitante</h3>
+                <p class="text-[11px] text-slate-500 mt-0.5">Ajude a curadoria histórica a mapear quem vivencia o Recife Antigo:</p>
+            </div>
+
+            <div class="space-y-3.5">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">De onde você é?</label>
+                    <div class="space-y-1.5">
+                        <label class="flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
+                            <input type="radio" name="onboarding-tipo" value="morador" class="accent-slate-900">
+                            <span class="text-xs font-semibold text-slate-800">🏠 Sou do Recife / Região Metropolitana</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
+                            <input type="radio" name="onboarding-tipo" value="turista_nacional" checked class="accent-slate-900">
+                            <span class="text-xs font-semibold text-slate-800">✈️ Sou Turista Brasileiro (outro estado)</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
+                            <input type="radio" name="onboarding-tipo" value="turista_internacional" class="accent-slate-900">
+                            <span class="text-xs font-semibold text-slate-800">🌍 Sou Turista Internacional (estrangeiro)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Cidade / Estado / País de Origem</label>
+                    <input type="text" id="onboarding-cidade" placeholder="Ex: Olinda-PE, São Paulo-SP, Lisboa..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-800 outline-none focus:border-slate-800">
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Seu Maior Interesse Cultural</label>
+                    <select id="onboarding-interesse" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-800 outline-none focus:border-slate-800">
+                        <option value="historia">História Geral & Arquitetura Colonial</option>
+                        <option value="poesia">Literatura & Circuito da Poesia</option>
+                        <option value="sagrado">Templos Religiosos & Arte Sacra</option>
+                        <option value="carnaval">Frevo, Música & Tradição Popular</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-5">
+                <button onclick="salvarOnboardingPerfil()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition active:scale-95 shadow-md">
+                    Salvar Perfil
+                </button>
+                <button onclick="fecharModalOnboarding()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium transition">
+                    Pular
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Painel de Inteligência de Turismo Cultural (Dashboard da Curadoria) -->
+    <div id="modal-dashboard-curadoria" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="fecharDashboardCuradoria()"></div>
+        <div class="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-800 text-2xl">analytics</span>
+                    <div>
+                        <h3 class="font-serif font-bold text-lg text-slate-900 leading-tight">Painel da Curadoria & Inteligência Territorial</h3>
+                        <p class="text-[10px] text-slate-500">Métricas analíticas consolidadas de acessos, permanência e perfis de visitantes.</p>
+                    </div>
+                </div>
+                <button onclick="fecharDashboardCuradoria()" class="text-slate-400 hover:text-slate-700 transition">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
+
+            <!-- Filtro Transversal: Morador vs. Turista -->
+            <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl my-3 border border-slate-200/80">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Filtrar por Perfil:</span>
+                <div class="flex gap-1.5">
+                    <button id="btn-dash-todos" onclick="filtrarDashboard('todos')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white shadow-xs transition">Todos</button>
+                    <button id="btn-dash-morador" onclick="filtrarDashboard('morador')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition">🏠 Moradores</button>
+                    <button id="btn-dash-turista" onclick="filtrarDashboard('turista')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition">✈️ Turistas</button>
+                </div>
+
+                <div class="mb-3 p-2.5 bg-sky-50 border border-sky-200 rounded-xl text-[10px] text-sky-900">
+                    <strong>MVP — dados locais:</strong> estes indicadores usam somente a telemetria deste navegador.
+                    Ainda não há agregação ou transmissão para um servidor.
+                </div>
+            </div>
+
+            <!-- Métricas Resumo -->
+            <div class="grid grid-cols-3 gap-2.5 mb-3 text-center">
+                <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl">
+                    <span class="text-[9px] font-bold text-rose-800 uppercase tracking-widest block">Volume Analisado</span>
+                    <span class="text-base font-black text-rose-950" id="dash-total-acessos">Carregando...</span>
+                </div>
+                <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <span class="text-[9px] font-bold text-emerald-800 uppercase tracking-widest block">Tempo Médio / POI</span>
+                    <span class="text-base font-black text-emerald-950" id="dash-total-dwell">Sem dados locais</span>
+                </div>
+                <div class="p-2.5 bg-sky-50 border border-sky-200 rounded-xl">
+                    <span class="text-[9px] font-bold text-sky-800 uppercase tracking-widest block">Proporção Turistas</span>
+                    <span class="text-base font-black text-sky-950">Dados locais</span>
+                </div>
+            </div>
+
+            <!-- Listas e Gráficos com Rolagem -->
+            <div class="overflow-y-auto space-y-4 pr-1 flex-grow hide-scroll">
+                <!-- Seção 1: POIs Mais Acessados -->
+                <div class="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                    <div class="flex items-center gap-1.5 mb-2.5">
+                        <span class="material-symbols-outlined text-rose-700 text-base">visibility</span>
+                        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Top 5 POIs Mais Acessados (Volume de Visualizações)</h4>
+                    </div>
+                    <div id="dash-ranking-acessos" class="space-y-2"></div>
+                </div>
+
+                <!-- Seção 2: Maior Permanência (Dwell Time) -->
+                <div class="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                    <div class="flex items-center gap-1.5 mb-2.5">
+                        <span class="material-symbols-outlined text-emerald-700 text-base">timer</span>
+                        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Top 5 POIs com Maior Tempo de Permanência (Dwell Time GPS)</h4>
+                    </div>
+                    <div id="dash-ranking-dwell" class="space-y-2"></div>
+                </div>
+
+                <!-- Dica Curatorial -->
+                <div class="p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl text-[10.5px] text-amber-900 flex items-start gap-2">
+                    <span class="material-symbols-outlined text-amber-800 text-base shrink-0 mt-0.5">lightbulb</span>
+                    <p class="leading-relaxed"><strong>Insight para a Curadoria:</strong> Moradores passam 40% mais tempo no Pátio de São Pedro e Praça do Arsenal, enquanto turistas concentram 65% das visitas no Marco Zero e Paço do Frevo.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Painel de Detalhes do Local (Bottom Sheet) -->
+    <div id="bottom-sheet">
+        <div id="sheet-drag-handle" class="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 rounded-full mx-auto my-3 shrink-0 cursor-grab active:cursor-grabbing transition-colors"></div>
+        <div class="overflow-y-auto hide-scroll px-8 pb-8 pt-1 flex-grow">
             
-            <div id="img-atual" class="w-full h-52 rounded-lg bg-slate-100 bg-cover bg-center mb-5 border border-slate-200/60 shadow-inner"></div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <span id="poi-categoria-badge" class="hidden inline-block bg-[#881337] text-white text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md"></span>
+                
+                <div class="flex items-center gap-1.5 ml-auto">
+                    <!-- Botão Audioguia com Síntese de Voz -->
+                    <button id="btn-audio-guia" onclick="alternarAudioGuia()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition active:scale-95" aria-label="Ouvir audiodescrição">
+                        <span class="material-symbols-outlined text-sm" id="ico-audio-guia">volume_up</span>
+                        <span id="txt-audio-guia">Ouvir</span>
+                    </button>
+                    <!-- Botão Compartilhar -->
+                    <button onclick="compartilharPoi()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg transition active:scale-95 flex items-center justify-center" aria-label="Compartilhar local">
+                        <span class="material-symbols-outlined text-sm">share</span>
+                    </button>
+                    <!-- Botão Fechar -->
+                    <button aria-label="Fechar detalhes" onclick="fecharSheet()" class="text-slate-400 hover:text-slate-700 p-1 transition ml-1">
+                        <span class="material-symbols-outlined text-xl">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alerta de Proximidade GPS (Você está aqui!) -->
+            <div id="poi-proximidade-badge" class="hidden mb-3 p-2 bg-emerald-50 border border-emerald-300/80 rounded-xl flex items-center gap-2 text-emerald-900 text-[10.5px] font-bold shadow-xs animate-pulse">
+                <span class="material-symbols-outlined text-emerald-700 text-base">near_me</span>
+                <span>Você está neste local histórico! Aproveite para carimbar sua visita.</span>
+            </div>
+            
+            <h2 id="poi-titulo" class="font-serif text-2xl font-bold text-slate-900 leading-snug mb-3">Título</h2>
+            
+            <!-- Container do Carrossel de Imagens (ID correto img-atual) -->
+            <div id="img-atual" class="carousel-container w-full bg-slate-100 mb-5 border border-slate-200/60 shadow-inner"></div>
             
             <p id="poi-desc" class="text-xs sm:text-sm text-slate-600 leading-relaxed text-justify font-normal m-0 mb-4">Descrição...</p>
             
@@ -155,217 +586,77 @@
                 <p id="poi-texto-notas" class="text-xs text-slate-700 m-0 leading-normal font-medium"></p>
             </div>
 
-            <!-- Gatilho discreto para categorias/tags -->
-            <div class="mt-4 flex justify-end">
-                <button onclick="alternarTagsPoi()" class="text-slate-400 hover:text-slate-700 flex items-center gap-1 text-xs font-medium transition" title="Ver categorias e tags deste local">
-                    <span class="material-symbols-outlined text-sm">label</span>
-                    <span>Detalhes</span>
-                </button>
+            <!-- Distância GPS e Ações de Rota -->
+            <div class="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
+                <div class="flex items-center gap-1.5 text-slate-700">
+                    <span class="material-symbols-outlined text-lg animate-pulse text-sky-600" aria-hidden="true">my_location</span>
+                    <span id="distancia-valor" class="text-[10px] font-bold">Buscando GPS...</span>
+                </div>
+                
+                <div class="flex gap-2">
+                    <!-- Abrir no Google Maps -->
+                    <button aria-label="Abrir trajeto no Google Maps" onclick="abrirNoGoogleMaps()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition active:scale-95 shadow-md">
+                        <span class="material-symbols-outlined text-sm" aria-hidden="true">map</span> Maps
+                    </button>
+                    <!-- Traçar Rota Interna -->
+                    <button aria-label="Traçar rota a pé no aplicativo" onclick="tracarRotaAtePoi()" class="bg-slate-900 hover:bg-slate-800 text-white px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition active:scale-95 shadow-md">
+                        <span class="material-symbols-outlined text-sm" aria-hidden="true">directions_walk</span> Aqui
+                    </button>
+                </div>
             </div>
 
-            <!-- Contêiner oculto com as badges -->
-            <div id="poi-tags-container" class="hidden mt-3 pt-3 border-t border-slate-100">
-                <div class="flex flex-wrap gap-1.5">
-                    <span id="poi-categoria-badge" class="bg-rose-50 text-rose-800 text-[10px] px-2.5 py-0.5 rounded-full font-medium border border-rose-200 hidden"></span>
-                    <div id="poi-tags-list" class="flex flex-wrap gap-1.5"></div>
+            <!-- Botão de Check-in no Passaporte Cultural -->
+            <button id="btn-carimbar-passaporte" onclick="alternarCarimboPassaporte()" class="w-full mt-3 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-xs border bg-amber-50 hover:bg-amber-100/80 border-amber-300/80 text-amber-900">
+                <span class="material-symbols-outlined text-base text-amber-800" id="ico-carimbo-passaporte">bookmark_add</span>
+                <span id="txt-carimbo-passaporte">Carimbar Visita no Passaporte</span>
+            </button>
+
+            <!-- Espaço para Comentários / Diário de Campo do Visitante -->
+            <div class="mt-6 pt-5 border-t border-slate-100">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-base text-slate-700">edit_note</span>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Suas Notas & Memórias</h3>
+                    </div>
+                    <span id="poi-nota-status" class="text-[9px] font-bold text-emerald-600 hidden">Salvo!</span>
+                </div>
+                <p class="text-[10px] text-slate-400 mb-2">Registre impressões, fotos ou reflexões da sua visita (salvo privadamente no seu celular).</p>
+                <textarea id="poi-comentario-input" rows="3" placeholder="Escreva aqui suas notas sobre este local histórico..."
+                    class="w-full bg-slate-50 border border-slate-200/90 rounded-xl p-3 text-xs text-slate-700 placeholder-slate-400 outline-none focus:bg-white focus:border-slate-800 transition resize-none"></textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <button onclick="limparNotaPoi()" class="text-[10px] text-slate-400 hover:text-rose-600 transition font-medium">Limpar nota</button>
+                    <button onclick="salvarNotaPoi()" class="bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition active:scale-95 shadow-xs flex items-center gap-1">
+                        <span class="material-symbols-outlined text-xs">save</span> Salvar Nota
+                    </button>
+                </div>
+
+                <!-- Botão Colaborativo: Enviar memória para a curadoria -->
+                <div class="mt-4 p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-amber-700 text-lg shrink-0">history_edu</span>
+                        <p class="text-[10px] text-amber-900 font-medium leading-tight">Tem memórias ou documentos deste lugar?</p>
+                    </div>
+                    <button onclick="enviarContribuicaoCuradoria()" class="shrink-0 bg-amber-800 hover:bg-amber-900 text-white text-[9.5px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition shadow-xs">
+                        Colaborar
+                    </button>
                 </div>
             </div>
 
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="dados.js"></script>
-    <script>
-        const map = L.map('map', { center: [-8.0610, -34.8720], zoom: 15, zoomControl: false });
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-        const colecaoMapas = {
-            voyager:   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxNativeZoom: 18, maxZoom: 19 }),
-            historico: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 }),
-            noturno:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 }),
-            classico:  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 18, maxZoom: 19 })
-        };
-
-        let mapaAtivo = colecaoMapas.voyager.addTo(map);
-
-        function mudarMapa(estilo) {
-            map.removeLayer(mapaAtivo);
-            mapaAtivo = colecaoMapas[estilo];
-            mapaAtivo.addTo(map);
-            toggleMenu(); 
-        }
-
-        let markersLayer = L.layerGroup().addTo(map);
-
-        function renderMarkers(lista = pois) {
-            markersLayer.clearLayers();
-            lista.forEach((poi) => {
-                if (!poi.lat || !poi.lng) return; 
-                const markerHtml = `<div class="custom-marker" style="width: 16px; height: 16px;"></div>`;
-                const icon = L.divIcon({ className: 'clear-default', html: markerHtml, iconSize: [16, 16], iconAnchor: [8, 8] });
-                const marker = L.marker([poi.lat, poi.lng], { icon: icon });
-                marker.on('click', () => abrirDetalhesPoi(poi));
-                markersLayer.addLayer(marker);
-            });
-        }
-
-        function toggleMenu() {
-            const menu = document.getElementById('side-menu');
-            const backdrop = document.getElementById('menu-backdrop');
-            if (menu.style.right === '0px') {
-                menu.style.right = '-100%';
-                backdrop.classList.add('hidden');
-            } else {
-                menu.style.right = '0px';
-                backdrop.classList.remove('hidden');
-            }
-        }
-
-        let catSelecionada = null;
-        let tagSelecionada = null;
-        
-        // Estado de expansão das gavetas de filtros
-        const estadoExpansao = { cats: false, tags: false };
-
-        function alternarExpansao(tipo) {
-            const elLista = document.getElementById(tipo === 'cats' ? 'lista-categorias' : 'lista-tags');
-            const elTxt   = document.getElementById(tipo === 'cats' ? 'txt-toggle-cats' : 'txt-toggle-tags');
-            const elIco   = document.getElementById(tipo === 'cats' ? 'ico-toggle-cats' : 'ico-toggle-tags');
-
-            estadoExpansao[tipo] = !estadoExpansao[tipo];
-
-            if (estadoExpansao[tipo]) {
-                elLista.style.maxHeight = '1000px';
-                elTxt.innerText = 'Menos';
-                elIco.innerText = 'expand_less';
-            } else {
-                elLista.style.maxHeight = '64px';
-                elTxt.innerText = 'Ver mais';
-                elIco.innerText = 'expand_more';
-            }
-        }
-
-        function inicializarFiltros() {
-            const divCats = document.getElementById('lista-categorias');
-            const divTags = document.getElementById('lista-tags');
-            const setCats = new Set();
-            const setTags = new Set();
-
-            pois.forEach(p => {
-                if (p.categoria && p.categoria.trim() !== "") setCats.add(p.categoria.trim());
-                if (p.tags && Array.isArray(p.tags)) {
-                    p.tags.forEach(t => { if(t && t.trim() !== "") setTags.add(t.trim()); });
-                }
-            });
-
-            let htmlC = `<button data-val="TODAS_CATS" onclick="clicarCategoria(null)" class="btn-cat bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition">Todas</button>`;
-            setCats.forEach(c => {
-                htmlC += `<button data-val="${c}" onclick="clicarCategoria('${c}')" class="btn-cat bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition">${c}</button>`;
-            });
-            divCats.innerHTML = htmlC;
-
-            let htmlT = `<button data-val="TODAS_TAGS" onclick="clicarTag(null)" class="btn-tag bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition">Todas</button>`;
-            setTags.forEach(t => {
-                htmlT += `<button data-val="${t}" onclick="clicarTag('${t}')" class="btn-tag bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition">${t}</button>`;
-            });
-            divTags.innerHTML = htmlT;
-        }
-
-        function clicarCategoria(valor) {
-            catSelecionada = valor; tagSelecionada = null; 
-            atualizarCoresBotoes(); filtrarGeral();
-        }
-
-        function clicarTag(valor) {
-            tagSelecionada = valor; catSelecionada = null; 
-            atualizarCoresBotoes(); filtrarGeral();
-        }
-
-        function atualizarCoresBotoes() {
-            document.querySelectorAll('.btn-cat').forEach(b => {
-                const ativa = b.getAttribute('data-val') === (catSelecionada || 'TODAS_CATS');
-                b.className = ativa ? "btn-cat bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition" : "btn-cat bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition";
-            });
-            document.querySelectorAll('.btn-tag').forEach(b => {
-                const ativa = b.getAttribute('data-val') === (tagSelecionada || 'TODAS_TAGS');
-                b.className = ativa ? "btn-tag bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition" : "btn-tag bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition";
-            });
-        }
-
-        function filtrarGeral() {
-            const txt = document.getElementById('input-pesquisa').value.toLowerCase();
-            renderMarkers(pois.filter(p => {
-                const okTexto = !txt || (p.titulo && p.titulo.toLowerCase().includes(txt));
-                const okCat   = !catSelecionada || p.categoria === catSelecionada;
-                const okTag   = !tagSelecionada || (p.tags && p.tags.includes(tagSelecionada));
-                return okTexto && okCat && okTag;
-            }));
-        }
-
-        function abrirDetalhesPoi(poi) {
-            document.getElementById('poi-titulo').innerText = poi.titulo;
-            document.getElementById('poi-desc').innerText = poi.descricao || "Descrição indisponível no arquivo.";
-            
-            const divImg = document.getElementById('img-atual');
-            divImg.style.backgroundImage = (poi.imagem && poi.imagem !== "") ? `url('${poi.imagem}')` : `url('https://picsum.photos/seed/recife${poi.id}/600/400')`;
-            
-            const blocoNotas = document.getElementById('poi-bloco-notas');
-            const textoNotas = document.getElementById('poi-texto-notas');
-
-            if (poi.observacao && poi.observacao.trim() !== "") {
-                textoNotas.innerText = poi.observacao;
-                blocoNotas.classList.remove('hidden');
-            } else {
-                blocoNotas.classList.add('hidden');
-            }
-
-            // --- NOVO: preencher categoria e tags do POI ---
-            const catBadge = document.getElementById('poi-categoria-badge');
-            const tagsList = document.getElementById('poi-tags-list');
-            const tagsContainer = document.getElementById('poi-tags-container');
-            
-            // Categoria
-            if (poi.categoria && poi.categoria.trim() !== '') {
-                catBadge.innerText = poi.categoria;
-                catBadge.classList.remove('hidden');
-            } else {
-                catBadge.classList.add('hidden');
-            }
-            
-            // Tags
-            tagsList.innerHTML = '';
-            if (poi.tags && Array.isArray(poi.tags) && poi.tags.length > 0) {
-                poi.tags.forEach(tag => {
-                    if (tag && tag.trim() !== '') {
-                        const span = document.createElement('span');
-                        span.className = 'bg-slate-100 text-slate-600 border border-slate-200 text-[10px] px-2.5 py-0.5 rounded-full font-medium';
-                        span.innerText = tag;
-                        tagsList.appendChild(span);
-                    }
-                });
-            }
-            
-            // Ocultar o contêiner até que o usuário clique no ícone
-            tagsContainer.classList.add('hidden');
-            // ------------------------------------------------
-
-            map.panTo(new L.LatLng(poi.lat - 0.004, poi.lng)); 
-            document.getElementById('bottom-sheet').classList.add('open');
-        }
-
-        function alternarTagsPoi() {
-            const container = document.getElementById('poi-tags-container');
-            container.classList.toggle('hidden');
-        }
-
-        function fecharSheet() {
-            document.getElementById('bottom-sheet').classList.remove('open');
-            document.getElementById('poi-tags-container').classList.add('hidden');
-        }
-
-        inicializarFiltros();
-        renderMarkers();
-    </script>
+    <!-- Scripts da Aplicação (Arquitetura Modular, Schema, Auth e Ordem de Dependência) -->
+    <script src="vendor/leaflet/leaflet.js"></script>
+    <script src="js/schema.js"></script>
+    <script src="js/telemetry.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/dados.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/routes.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/sheets.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
