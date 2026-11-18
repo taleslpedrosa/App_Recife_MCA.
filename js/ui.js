@@ -1,4 +1,7 @@
-// Gerenciador de Interface de Usuário (UI), Modais, Filtros e Carrossel
+// Gerenciador Central de Interface (UI Coordinator & Facade)
+// Projeto: Recife: Museu a Céu Aberto (untangle-codebase)
+// Módulos desacoplados: js/ui/carousel.js, js/ui/audioguide.js, js/ui/notes.js,
+//                       js/ui/passport.js, js/ui/modals.js, js/ui/dashboard.js, js/ui/gestures.js
 
 let openedPoi = null;
 let catSelecionada = null;
@@ -10,11 +13,10 @@ const estadoSecoesMenu = { roteiros: false, epocas: false };
 let searchDebounceTimeout = null;
 const cachePesquisaPoi = new WeakMap();
 
-// Audioguia nativo por Síntese de Voz (SpeechSynthesis)
-let synthUtterance = null;
-let isAudioTocando = false;
+// =========================================================================
+// 1. UTILITÁRIOS DE TEXTO & PESQUISA
+// =========================================================================
 
-// Normalização de texto para comparações insensíveis a acentos e maiúsculas
 function normalizarTexto(txt) {
     if (!txt) return '';
     return txt.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
@@ -41,29 +43,44 @@ function obterDadosPesquisaPoi(poi) {
     return dados;
 }
 
+function textoPoiLocalizado(poi, campo) {
+    const lang = typeof i18n !== 'undefined' ? i18n.getIdioma() : (typeof idiomaAtual !== 'undefined' ? idiomaAtual : 'pt');
+    if (lang !== 'pt') {
+        const localizado = poi[`${campo}_${lang}`];
+        if (typeof localizado === 'string' && localizado.trim()) return localizado;
+    }
+    return poi[campo] || '';
+}
+
+// Sanitização de URLs de imagens (compatibilidade retroativa / CWE-79)
+function sanitizarUrlImagem(url) {
+    if (typeof CarouselModule !== 'undefined' && CarouselModule.sanitizarUrlImagem) {
+        return CarouselModule.sanitizarUrlImagem(url);
+    }
+    if (!url || typeof url !== 'string') return '';
+    const limpa = url.trim();
+    if (/^(https?:\/\/|\/|\.\/|imagens\/)/i.test(limpa) && !limpa.includes("'") && !limpa.includes('"') && !limpa.includes('(') && !limpa.includes(')')) {
+        return limpa;
+    }
+    return '';
+}
+
+// =========================================================================
+// 2. CONTROLE DO MENU LATERAL & NAVEGAÇÃO
+// =========================================================================
+
 function toggleMenu() {
     const menu = document.getElementById('side-menu');
     const backdrop = document.getElementById('menu-backdrop');
     if (!menu || !backdrop) return;
-    
+
     if (menu.style.right === '0px') {
-        menu.style.right = '-100%'; 
+        menu.style.right = '-100%';
         backdrop.classList.add('hidden');
     } else {
-        menu.style.right = '0px'; 
+        menu.style.right = '0px';
         backdrop.classList.remove('hidden');
     }
-}
-
-function abrirSobre() { 
-    const modal = document.getElementById('modal-sobre');
-    if (modal) modal.classList.remove('hidden'); 
-    toggleMenu(); 
-}
-
-function fecharSobre() { 
-    const modal = document.getElementById('modal-sobre');
-    if (modal) modal.classList.add('hidden'); 
 }
 
 function alternarSecaoMenu(secao) {
@@ -78,21 +95,6 @@ function alternarSecaoMenu(secao) {
     if (icone) icone.innerText = estadoSecoesMenu[secao] ? 'expand_less' : 'expand_more';
 }
 
-function abrirModalPassaporte() {
-    const modal = document.getElementById('modal-passaporte');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-    if (document.getElementById('side-menu')?.style.right === '0px') toggleMenu();
-}
-
-function fecharModalPassaporte() {
-    const modal = document.getElementById('modal-passaporte');
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-}
-
 function alternarExpansao(tipo) {
     const elLista = document.getElementById(tipo === 'cats' ? 'lista-categorias' : 'lista-tags');
     const elTxt   = document.getElementById(tipo === 'cats' ? 'txt-toggle-cats' : 'txt-toggle-tags');
@@ -101,12 +103,12 @@ function alternarExpansao(tipo) {
 
     estadoExpansao[tipo] = !estadoExpansao[tipo];
     if (estadoExpansao[tipo]) {
-        elLista.style.maxHeight = '1000px'; 
-        elTxt.innerText = 'Menos'; 
+        elLista.style.maxHeight = '1000px';
+        elTxt.innerText = 'Menos';
         elIco.innerText = 'expand_less';
     } else {
-        elLista.style.maxHeight = '64px'; 
-        elTxt.innerText = 'Ver mais'; 
+        elLista.style.maxHeight = '64px';
+        elTxt.innerText = 'Ver mais';
         elIco.innerText = 'expand_more';
     }
 }
@@ -124,29 +126,29 @@ function atualizarContador(quantidade) {
     }
 }
 
+// =========================================================================
+// 3. FILTROS, CATEGORIAS, TAGS E LINHA DO TEMPO (ÉPOCAS)
+// =========================================================================
+
 function inicializarFiltros() {
     const divCats = document.getElementById('lista-categorias');
     const listaPois = obterListaPois();
     if (!divCats || listaPois.length === 0) return;
 
-    const mapaCategorias = new Map(); // Normalizado -> Nome canônico com acento
+    const mapaCategorias = new Map();
 
     listaPois.forEach(p => {
-        // Trata categorias (unificando variações com/sem acento)
         if (p.categoria && typeof p.categoria === 'string') {
             const catLimpa = p.categoria.trim();
             if (catLimpa !== "") {
                 const chaveNorm = normalizarTexto(catLimpa);
-                // Dá preferência à versão acentuada se houver
                 if (!mapaCategorias.has(chaveNorm) || catLimpa.includes('í') || catLimpa.includes('é') || catLimpa.includes('ã')) {
                     mapaCategorias.set(chaveNorm, catLimpa);
                 }
             }
         }
-
     });
 
-    // Renderização Segura de Categorias (Previne DOM XSS / CWE-79)
     divCats.innerHTML = '';
     const btnTodasCat = document.createElement('button');
     btnTodasCat.setAttribute('data-val', 'TODAS_CATS');
@@ -159,38 +161,39 @@ function inicializarFiltros() {
         const btn = document.createElement('button');
         btn.setAttribute('data-val', catExibicao);
         btn.className = 'btn-cat bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition';
-        btn.textContent = catExibicao; // Inofensivo contra injeção de HTML/scripts
+        btn.textContent = catExibicao;
         btn.addEventListener('click', () => clicarCategoria(catExibicao));
         divCats.appendChild(btn);
     });
+
     inicializarFiltroSeculos();
 }
 
-function clicarCategoria(valor) { 
-    catSelecionada = valor; 
-    tagSelecionada = null; 
-    atualizarCoresBotoes(); 
-    filtrarGeral(); 
+function clicarCategoria(valor) {
+    catSelecionada = valor;
+    tagSelecionada = null;
+    atualizarCoresBotoes();
+    filtrarGeral();
 }
 
-function clicarTag(valor) { 
-    tagSelecionada = valor; 
-    catSelecionada = null; 
-    atualizarCoresBotoes(); 
-    filtrarGeral(); 
+function clicarTag(valor) {
+    tagSelecionada = valor;
+    catSelecionada = null;
+    atualizarCoresBotoes();
+    filtrarGeral();
 }
 
 function atualizarCoresBotoes() {
     document.querySelectorAll('.btn-cat').forEach(b => {
         const ativa = b.getAttribute('data-val') === (catSelecionada || 'TODAS_CATS');
-        b.className = ativa 
-            ? "btn-cat bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition" 
+        b.className = ativa
+            ? "btn-cat bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition"
             : "btn-cat bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition";
     });
     document.querySelectorAll('.btn-tag').forEach(b => {
         const ativa = b.getAttribute('data-val') === (tagSelecionada || 'TODAS_TAGS');
-        b.className = ativa 
-            ? "btn-tag bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition" 
+        b.className = ativa
+            ? "btn-tag bg-slate-900 text-white text-[11px] px-2.5 py-1.5 rounded-md font-semibold transition"
             : "btn-tag bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60 text-[11px] px-2.5 py-1.5 rounded-md font-medium transition";
     });
 }
@@ -199,8 +202,8 @@ function filtrarPorEpoca(epoca) {
     epocaSelecionada = epoca && epocaSelecionada !== epoca ? epoca : null;
     document.querySelectorAll('.btn-epoca').forEach(b => {
         const estaAtiva = b.getAttribute('data-epoca') === epocaSelecionada;
-        b.className = estaAtiva 
-            ? "btn-epoca bg-slate-900 text-white text-[10px] p-2 rounded-lg font-bold transition text-left" 
+        b.className = estaAtiva
+            ? "btn-epoca bg-slate-900 text-white text-[10px] p-2 rounded-lg font-bold transition text-left"
             : "btn-epoca bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] p-2 rounded-lg font-medium transition text-left";
     });
     filtrarGeral();
@@ -258,9 +261,9 @@ function filtrarGeralComDebounce() {
 
 function filtrarGeral(bypassRoute = false) {
     if (typeof isRouteMode !== 'undefined' && isRouteMode && !bypassRoute) {
-        if (typeof limparRota === 'function') limparRota(); 
+        if (typeof limparRota === 'function') limparRota();
     }
-    
+
     const inputPesquisa = document.getElementById('input-pesquisa');
     const txtBusca = inputPesquisa ? normalizarTexto(inputPesquisa.value) : '';
 
@@ -286,7 +289,6 @@ function filtrarGeral(bypassRoute = false) {
             }
         }
 
-        // Filtro por Época Histórica (Linha do Tempo Urbana)
         let okEpoca = true;
         if (epocaSelecionada) {
             const seculoPoi = obterSeculoPoi(p);
@@ -310,159 +312,38 @@ function filtrarGeral(bypassRoute = false) {
     }
 }
 
-// Sanitização estrita de URLs de imagens contra injeção de CSS / XSS
-function sanitizarUrlImagem(url) {
-    if (!url || typeof url !== 'string') return '';
-    const limpa = url.trim();
-    // Bloqueia caracteres que possam fechar url('...') ou executar scripts
-    if (/^(https?:\/\/|\/|\.\/|imagens\/)/i.test(limpa) && !limpa.includes("'") && !limpa.includes('"') && !limpa.includes('(') && !limpa.includes(')')) {
-        return limpa;
-    }
-    return '';
-}
-
-function textoPoiLocalizado(poi, campo) {
-    const lang = typeof i18n !== 'undefined' ? i18n.getIdioma() : (typeof idiomaAtual !== 'undefined' ? idiomaAtual : 'pt');
-    if (lang !== 'pt') {
-        const localizado = poi[`${campo}_${lang}`];
-        if (typeof localizado === 'string' && localizado.trim()) return localizado;
-    }
-    return poi[campo] || '';
-}
+// =========================================================================
+// 4. BOTTOM SHEET: DETALHES DO PONTO DE INTERESSE
+// =========================================================================
 
 function abrirDetalhesPoi(poi) {
     openedPoi = poi;
     pararAudioGuia();
-    if (typeof telemetry !== 'undefined') telemetry.registrarVisualizacaoPoi(poi.id);
-    
+    if (typeof telemetry !== 'undefined') {
+        telemetry.registrarVisualizacaoPoi(poi.id);
+        telemetry.iniciarDwellTime(poi.id);
+    }
+
     // Título e Descrição
     const tituloEl = document.getElementById('poi-titulo');
     const descEl = document.getElementById('poi-desc');
     if (tituloEl) tituloEl.innerText = textoPoiLocalizado(poi, 'titulo') || "Sem título";
     if (descEl) descEl.innerText = textoPoiLocalizado(poi, 'descricao') || "Descrição detalhada em elaboração pelo acervo.";
-    
-    // Configuração do Container da Imagem (ID img-atual corrigido)
+
+    // Renderiza Carrossel via CarouselModule
     const containerImg = document.getElementById('img-atual');
-    if (containerImg) {
-        containerImg.innerHTML = '';
-        containerImg.className = "carousel-container w-full bg-slate-100 mb-5 border border-slate-200/60 shadow-inner";
-
-        let listaImagens = [];
-        if (Array.isArray(poi.imagem)) {
-            listaImagens = poi.imagem.filter(img => typeof img === 'string' && img.trim() !== "");
-        } else if (typeof poi.imagem === 'string' && poi.imagem.trim() !== "") {
-            // Suporta múltiplos links separados por vírgula na célula da planilha
-            listaImagens = poi.imagem.split(',').map(s => s.trim()).filter(Boolean);
-        }
-
-        // Converte automaticamente links do Google Drive para visualização direta
-        listaImagens = listaImagens.map(src => {
-            if (typeof converterUrlGoogleDrive === 'function') {
-                return converterUrlGoogleDrive(src);
-            }
-            if (src.includes('drive.google.com')) {
-                const matchFile = src.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || src.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-                if (matchFile && matchFile[1]) return `https://lh3.googleusercontent.com/d/${matchFile[1]}`;
-            }
-            return src;
-        });
-
-        // Se não houver fotos definitivas locais, fallback seguro
-        if (listaImagens.length === 0) {
-            listaImagens = ['imagens/icone-192.png'];
-        }
-
-        let indiceAtual = 0;
-
-        function renderizarSlide(index) {
-            const slides = containerImg.querySelectorAll('.carousel-slide');
-            slides.forEach(s => s.classList.remove('active'));
-            
-            const dots = containerImg.querySelectorAll('.dot');
-            dots.forEach((d, i) => d.classList.toggle('active', i === index));
-
-            const slideAtivo = slides[index];
-            if (slideAtivo) slideAtivo.classList.add('active');
-        }
-
-        // Cria os slides
-        listaImagens.forEach((src, idx) => {
-            const slide = document.createElement('div');
-            slide.className = `carousel-slide ${idx === 0 ? 'active' : ''}`;
-            
-            const urlSegura = sanitizarUrlImagem(src);
-            const aplicarFallback = () => {
-                slide.style.background = 'linear-gradient(135deg, #1e293b 0%, #334155 100%)';
-                slide.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center text-slate-300">
-                    <span class="material-symbols-outlined text-4xl mb-1 text-slate-400">account_balance</span>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recife: Museu a Céu Aberto</span>
-                </div>`;
-            };
-
-            if (!urlSegura) {
-                aplicarFallback();
-            } else {
-                // Tratamento de erro resiliente
-                const imgTest = new Image();
-                imgTest.src = urlSegura;
-                imgTest.onload = () => { 
-                    slide.style.backgroundImage = `url('${urlSegura}')`; 
-                };
-                imgTest.onerror = aplicarFallback;
-
-                if (imgTest.complete && imgTest.naturalWidth !== 0) {
-                    slide.style.backgroundImage = `url('${urlSegura}')`;
-                }
-            }
-
-            containerImg.appendChild(slide);
-        });
-
-        // Controles de carrossel se houver mais de uma imagem
-        if (listaImagens.length > 1) {
-            const btnPrev = document.createElement('button');
-            btnPrev.className = 'carousel-btn prev';
-            btnPrev.innerHTML = '&#10094;';
-            btnPrev.setAttribute('aria-label', 'Foto anterior');
-            btnPrev.onclick = () => {
-                indiceAtual = (indiceAtual - 1 + listaImagens.length) % listaImagens.length;
-                renderizarSlide(indiceAtual);
-            };
-            containerImg.appendChild(btnPrev);
-
-            const btnNext = document.createElement('button');
-            btnNext.className = 'carousel-btn next';
-            btnNext.innerHTML = '&#10095;';
-            btnNext.setAttribute('aria-label', 'Próxima foto');
-            btnNext.onclick = () => {
-                indiceAtual = (indiceAtual + 1) % listaImagens.length;
-                renderizarSlide(indiceAtual);
-            };
-            containerImg.appendChild(btnNext);
-
-            const indicators = document.createElement('div');
-            indicators.className = 'carousel-indicators';
-            listaImagens.forEach((_, idx) => {
-                const dot = document.createElement('div');
-                dot.className = `dot ${idx === 0 ? 'active' : ''}`;
-                dot.onclick = () => {
-                    indiceAtual = idx;
-                    renderizarSlide(indiceAtual);
-                };
-                indicators.appendChild(dot);
-            });
-            containerImg.appendChild(indicators);
-        }
+    if (containerImg && typeof CarouselModule !== 'undefined') {
+        CarouselModule.renderizar(containerImg, poi);
     }
 
     // Badge de Categoria
     const catBadge = document.getElementById('poi-categoria-badge');
     if (catBadge) {
         if (poi.categoria && typeof poi.categoria === 'string' && poi.categoria.trim() !== "") {
-            catBadge.innerText = poi.categoria; 
+            catBadge.innerText = poi.categoria;
             catBadge.classList.remove('hidden');
-        } else { 
-            catBadge.classList.add('hidden'); 
+        } else {
+            catBadge.classList.add('hidden');
         }
     }
 
@@ -471,31 +352,35 @@ function abrirDetalhesPoi(poi) {
     const textoNotas = document.getElementById('poi-texto-notas');
     if (blocoNotas && textoNotas) {
         if (poi.observacao && typeof poi.observacao === 'string' && poi.observacao.trim() !== "") {
-            textoNotas.innerText = poi.observacao; 
+            textoNotas.innerText = poi.observacao;
             blocoNotas.classList.remove('hidden');
-        } else { 
-            blocoNotas.classList.add('hidden'); 
+        } else {
+            blocoNotas.classList.add('hidden');
         }
     }
 
-    // Distância GPS
+    // Atualiza Distância GPS se o módulo de rotas estiver carregado
     if (typeof atualizarDistanciaPoi === 'function') {
         atualizarDistanciaPoi();
     }
-    
-    // Carrega notas/comentários pessoais salvos no dispositivo
-    carregarNotaPoi(poi.id);
 
-    // Atualiza o estado do carimbo do Passaporte Cultural
-    atualizarEstadoBotaoCarimbo();
+    // Carrega notas pessoais do visitante (NotesModule)
+    if (typeof NotesModule !== 'undefined') {
+        NotesModule.carregarNotaPoi(poi.id);
+    }
+
+    // Atualiza estado do carimbo no passaporte (PassportModule)
+    if (typeof PassportModule !== 'undefined') {
+        PassportModule.atualizarEstadoBotaoCarimbo();
+    }
 
     // Centralização Suave do Mapa
     const pLng = poi.lng ?? 0;
-    if (map && poi.lat && pLng) {
+    if (typeof map !== 'undefined' && map && poi.lat && pLng) {
         map.panTo(new L.LatLng(poi.lat - 0.0035, pLng), { animate: true, duration: 0.5 });
     }
 
-    // Atualiza a URL com Deep Link (?poi=ID) sem recarregar a página
+    // Atualiza URL com Deep Link (?poi=ID)
     if (window.history && window.history.replaceState) {
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.set('poi', poi.id);
@@ -503,19 +388,18 @@ function abrirDetalhesPoi(poi) {
         window.history.replaceState({ poiId: poi.id }, '', novaUrl);
     }
 
-    // Abertura do Bottom Sheet
+    // Exibe o painel inferior
     const sheet = document.getElementById('bottom-sheet');
     if (sheet) sheet.classList.add('open');
 }
 
-function fecharSheet() { 
+function fecharSheet() {
     pararAudioGuia();
     if (typeof telemetry !== 'undefined') telemetry.finalizarDwellTime();
     const sheet = document.getElementById('bottom-sheet');
-    if (sheet) sheet.classList.remove('open'); 
-    openedPoi = null; 
+    if (sheet) sheet.classList.remove('open');
+    openedPoi = null;
 
-    // Remove o parâmetro ?poi= da URL ao fechar o painel
     if (window.history && window.history.replaceState) {
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.delete('poi');
@@ -523,118 +407,6 @@ function fecharSheet() {
         window.history.replaceState({}, '', novaUrl);
     }
 }
-
-// ==========================================
-// AUDIOGUIA NATIVO (SPEECH SYNTHESIS)
-// ==========================================
-
-function alternarAudioGuia() {
-    if (isAudioTocando) {
-        pararAudioGuia();
-    } else {
-        tocarAudioGuia();
-    }
-}
-
-function tocarAudioGuia() {
-    if (!('speechSynthesis' in window)) {
-        alert('Seu navegador não possui suporte nativo à síntese de voz (áudioguia).');
-        return;
-    }
-    if (!openedPoi) return;
-
-    pararAudioGuia();
-    if (typeof telemetry !== 'undefined') telemetry.registrarAudioPlay(openedPoi.id);
-
-    const lang = typeof i18n !== 'undefined' ? i18n.getIdioma() : idiomaAtual;
-    const audiodescricao = openedPoi[`audiodescricao_${lang}`] || openedPoi.audiodescricao;
-    let textoNarracao = textoPoiLocalizado(openedPoi, 'titulo') || '';
-    if (openedPoi.categoria) {
-        textoNarracao += `. Categoria: ${openedPoi.categoria}. `;
-    } else {
-        textoNarracao += '. ';
-    }
-    if (audiodescricao) {
-        textoNarracao += audiodescricao;
-    } else {
-        textoNarracao += textoPoiLocalizado(openedPoi, 'descricao');
-    }
-    if (openedPoi.observacao) {
-        textoNarracao += ` Nota complementar: ${openedPoi.observacao}`;
-    }
-
-    synthUtterance = new SpeechSynthesisUtterance(textoNarracao);
-    synthUtterance.rate = 0.95; // Cadência amigável para escuta histórica
-    synthUtterance.pitch = 1.0;
-
-    // Configuração de idioma (i18n) e seleção dinâmica de voz
-    if (idiomaAtual === 'en') {
-        synthUtterance.lang = 'en-US';
-    } else if (idiomaAtual === 'es') {
-        synthUtterance.lang = 'es-ES';
-    } else {
-        synthUtterance.lang = 'pt-BR';
-    }
-
-    const vozes = window.speechSynthesis.getVoices();
-    const prefixo = synthUtterance.lang.slice(0, 2);
-    const vozCompativel = vozes.find(v => v.lang && v.lang.toLowerCase().startsWith(prefixo));
-    if (vozCompativel) {
-        synthUtterance.voice = vozCompativel;
-    }
-
-    synthUtterance.onstart = () => {
-        isAudioTocando = true;
-        atualizarBotaoAudio(true);
-    };
-
-    synthUtterance.onend = () => {
-        isAudioTocando = false;
-        atualizarBotaoAudio(false);
-    };
-
-    synthUtterance.onerror = (e) => {
-        // Ignora erros de cancelamento intencional
-        if (e.error !== 'interrupted' && e.error !== 'canceled') {
-            console.warn('Audioguia finalizado:', e);
-        }
-        isAudioTocando = false;
-        atualizarBotaoAudio(false);
-    };
-
-    window.speechSynthesis.speak(synthUtterance);
-}
-
-function pararAudioGuia() {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-    }
-    isAudioTocando = false;
-    atualizarBotaoAudio(false);
-}
-
-function atualizarBotaoAudio(tocando) {
-    const btn = document.getElementById('btn-audio-guia');
-    const ico = document.getElementById('ico-audio-guia');
-    const txt = document.getElementById('txt-audio-guia');
-    if (!btn || !ico || !txt) return;
-
-    if (tocando) {
-        btn.classList.add('bg-rose-100', 'text-rose-700', 'audio-playing-pulse');
-        btn.classList.remove('bg-slate-100', 'text-slate-700');
-        ico.innerText = 'stop_circle';
-        txt.innerText = 'Parar';
-    } else {
-        btn.classList.remove('bg-rose-100', 'text-rose-700', 'audio-playing-pulse');
-        btn.classList.add('bg-slate-100', 'text-slate-700');
-        ico.innerText = 'volume_up';
-        txt.innerText = 'Ouvir';
-    }
-}
-
-// ==========================================
-// COMPARTILHAMENTO DE POI & DEEP LINKING
-// ==========================================
 
 function compartilharPoi() {
     if (!openedPoi) return;
@@ -664,192 +436,9 @@ function compartilharPoi() {
     }
 }
 
-// ==========================================
-// DIÁRIO DE CAMPO / NOTAS DO VISITANTE
-// ==========================================
-
-function carregarNotaPoi(poiId) {
-    const input = document.getElementById('poi-comentario-input');
-    const status = document.getElementById('poi-nota-status');
-    if (status) status.classList.add('hidden');
-    if (!input) return;
-
-    if (!poiId) {
-        input.value = '';
-        return;
-    }
-
-    try {
-        const salva = localStorage.getItem(`recife_mca_nota_${poiId}`);
-        input.value = salva || '';
-    } catch (e) {
-        console.warn('Não foi possível ler o armazenamento local:', e);
-        input.value = '';
-    }
-}
-
-function salvarNotaPoi() {
-    if (!openedPoi) return;
-    const input = document.getElementById('poi-comentario-input');
-    const status = document.getElementById('poi-nota-status');
-    if (!input) return;
-
-    const texto = input.value.trim();
-    try {
-        if (texto) {
-            localStorage.setItem(`recife_mca_nota_${openedPoi.id}`, texto);
-        } else {
-            localStorage.removeItem(`recife_mca_nota_${openedPoi.id}`);
-        }
-
-        if (status) {
-            status.innerText = texto ? 'Salvo no celular!' : 'Nota excluída!';
-            status.classList.remove('hidden');
-            setTimeout(() => {
-                status.classList.add('hidden');
-            }, 2500);
-        }
-    } catch (e) {
-        console.warn('Erro ao salvar no localStorage:', e);
-        if (status) {
-            status.innerText = 'Erro ao salvar!';
-            status.classList.remove('hidden');
-        }
-    }
-}
-
-function limparNotaPoi() {
-    if (!openedPoi) return;
-    const input = document.getElementById('poi-comentario-input');
-    if (input) input.value = '';
-    salvarNotaPoi();
-}
-
-function enviarContribuicaoCuradoria() {
-    abrirModalColaborar();
-}
-
-function abrirModalColaborar() {
-    const modal = document.getElementById('modal-colaborar');
-    if (modal) {
-        modal.classList.remove('hidden');
-        const inputNome = document.getElementById('colaborar-nome');
-        if (inputNome) inputNome.focus();
-    }
-}
-
-function fecharModalColaborar() {
-    const modal = document.getElementById('modal-colaborar');
-    if (modal) modal.classList.add('hidden');
-}
-
-function confirmarEnvioColaboracao() {
-    const nome = (document.getElementById('colaborar-nome')?.value || 'Anônimo').trim();
-    const tipo = document.getElementById('colaborar-tipo')?.value || 'Contribuição Geral';
-    const relato = (document.getElementById('colaborar-mensagem')?.value || '').trim();
-
-    if (!relato) {
-        alert('Por favor, descreva brevemente sua memória ou contribuição antes de enviar.');
-        return;
-    }
-
-    const poiInfo = openedPoi ? `${openedPoi.titulo} (ID ${openedPoi.id})` : 'Acervo Geral';
-    const assunto = encodeURIComponent(`[Colaboração MCA] ${tipo}: ${poiInfo}`);
-    const corpo = encodeURIComponent(
-        `Olá Tales Pedrosa e Equipe de Pesquisa do Recife: Museu a Céu Aberto,\n\n` +
-        `Me chamo ${nome} e gostaria de contribuir com o acervo sobre o monumento:\n` +
-        `• Ponto de Interesse: ${poiInfo}\n` +
-        `• Categoria da Contribuição: ${tipo}\n\n` +
-        `Descrição / Memória Histórica:\n` +
-        `${relato}\n\n` +
-        `[Se houver fotografias ou documentos digitalizados, eles podem ser anexados a este e-mail]\n\n` +
-        `Atenciosamente,\n${nome}`
-    );
-
-    fecharModalColaborar();
-    window.location.href = `mailto:tales.pedrosa@gmail.com?subject=${assunto}&body=${corpo}`;
-}
-
-// ==========================================
-// CERTIFICADO DE CONCLUSÃO DE ROTEIRO (GAMIFICAÇÃO)
-// ==========================================
-
-let roteiroCertificadoAtivo = null;
-
-function exibirCertificado(roteiroChave) {
-    const modal = document.getElementById('modal-certificado');
-    const tituloEl = document.getElementById('cert-roteiro-nome');
-    const dataEl = document.getElementById('cert-data');
-    if (!modal || typeof roteiros === 'undefined' || !roteiros[roteiroChave]) return;
-
-    roteiroCertificadoAtivo = roteiros[roteiroChave];
-    if (tituloEl) tituloEl.innerText = roteiroCertificadoAtivo.name;
-    if (dataEl) {
-        const hoje = new Date();
-        dataEl.innerText = hoje.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-    }
-
-    modal.classList.remove('hidden');
-}
-
-function fecharCertificado() {
-    const modal = document.getElementById('modal-certificado');
-    if (modal) modal.classList.add('hidden');
-    roteiroCertificadoAtivo = null;
-}
-
-function compartilharCertificado() {
-    if (!roteiroCertificadoAtivo) return;
-    const texto = `🏆 Concluí 100% do roteiro '${roteiroCertificadoAtivo.name}' no projeto Recife: Museu a Céu Aberto! Explore você também:`;
-    const url = window.location.origin + window.location.pathname;
-
-    if (navigator.share) {
-        navigator.share({
-            title: `Certificado de Conclusão - ${roteiroCertificadoAtivo.name}`,
-            text: texto,
-            url: url
-        }).catch(() => {});
-    } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(`${texto}\n${url}`).then(() => {
-            alert('Texto de conquista copiado para a área de transferência!');
-        });
-    }
-}
-
-// ==========================================
-// GESTOS NO BOTTOM SHEET (SWIPE-DOWN MOBILE)
-// ==========================================
-
-function inicializarGestosBottomSheet() {
-    const sheet = document.getElementById('bottom-sheet');
-    const handle = document.getElementById('sheet-drag-handle');
-    if (!sheet || !handle) return;
-
-    let touchStartY = 0;
-    let touchEndY = 0;
-
-    handle.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-
-    handle.addEventListener('touchmove', (e) => {
-        touchEndY = e.touches[0].clientY;
-    }, { passive: true });
-
-    handle.addEventListener('touchend', () => {
-        const deltaY = touchEndY - touchStartY;
-        // Se arrastou para baixo mais de 60px, fecha o painel
-        if (deltaY > 60) {
-            fecharSheet();
-        }
-        touchStartY = 0;
-        touchEndY = 0;
-    }, { passive: true });
-}
-
-// ==========================================
-// SUPORTE A IDIOMAS (I18N)
-// ==========================================
+// =========================================================================
+// 5. INTERNACIONALIZAÇÃO (I18N)
+// =========================================================================
 
 function mudarIdioma(lang) {
     idiomaAtual = lang;
@@ -869,7 +458,7 @@ function mudarIdioma(lang) {
         });
     }
 
-    if (isAudioTocando) {
+    if (typeof AudioGuideModule !== 'undefined' && AudioGuideModule.estaTocando()) {
         tocarAudioGuia();
     }
     if (typeof openedPoi !== 'undefined' && openedPoi && typeof abrirDetalhesPoi === 'function') {
@@ -881,342 +470,129 @@ function mudarIdioma(lang) {
     });
 }
 
-// ==========================================
-// PASSAPORTE CULTURAL (GAMIFICAÇÃO HISTÓRICA)
-// ==========================================
+// =========================================================================
+// 6. FACHADAS & DELEGAÇÕES PARA MÓDULOS ESPECIALIZADOS
+// =========================================================================
 
+// Audioguia (AudioGuideModule)
+function alternarAudioGuia() {
+    return AudioGuideModule.alternar();
+}
+function tocarAudioGuia(poi) {
+    return AudioGuideModule.tocar(poi);
+}
+function pararAudioGuia() {
+    return AudioGuideModule.parar();
+}
+function atualizarBotaoAudio(tocando) {
+    return AudioGuideModule.atualizarBotaoAudio(tocando);
+}
+
+// Notas e Diário de Campo (NotesModule)
+function carregarNotaPoi(poiId) {
+    return NotesModule.carregarNotaPoi(poiId);
+}
+function salvarNotaPoi() {
+    return NotesModule.salvarNotaPoi();
+}
+function limparNotaPoi() {
+    return NotesModule.limparNotaPoi();
+}
+function enviarContribuicaoCuradoria() {
+    return NotesModule.enviarContribuicaoCuradoria();
+}
+function abrirModalColaborar() {
+    return NotesModule.abrirModalColaborar();
+}
+function fecharModalColaborar() {
+    return NotesModule.fecharModalColaborar();
+}
+function confirmarEnvioColaboracao() {
+    return NotesModule.confirmarEnvioColaboracao();
+}
+
+// Passaporte Cultural & Certificado (PassportModule)
 function obterLocaisVisitados() {
-    try {
-        const salvo = localStorage.getItem('recife_mca_passaporte');
-        return salvo ? JSON.parse(salvo) : [];
-    } catch (e) {
-        console.warn('Erro ao ler passaporte do localStorage:', e);
-        return [];
-    }
+    return PassportModule.obterLocaisVisitados();
 }
-
 function alternarCarimboPassaporte() {
-    if (!openedPoi) return;
-    const visitados = obterLocaisVisitados();
-    const id = openedPoi.id;
-    const index = visitados.indexOf(id);
-
-    if (index > -1) {
-        visitados.splice(index, 1);
-    } else {
-        visitados.push(id);
-    }
-
-    try {
-        localStorage.setItem('recife_mca_passaporte', JSON.stringify(visitados));
-    } catch (e) {
-        console.warn('Erro ao salvar carimbo no passaporte:', e);
-    }
-
-    atualizarEstadoBotaoCarimbo();
-    atualizarInterfacePassaporte();
+    return PassportModule.alternarCarimboPassaporte();
 }
-
 function atualizarEstadoBotaoCarimbo() {
-    const btn = document.getElementById('btn-carimbar-passaporte');
-    const ico = document.getElementById('ico-carimbo-passaporte');
-    const txt = document.getElementById('txt-carimbo-passaporte');
-    if (!btn || !ico || !txt || !openedPoi) return;
-
-    const visitados = obterLocaisVisitados();
-    const jaVisitou = visitados.includes(openedPoi.id);
-
-    if (jaVisitou) {
-        btn.className = "w-full mt-3 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-xs border bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white";
-        ico.innerText = "check_circle";
-        txt.innerText = "Local Carimbado no Passaporte!";
-    } else {
-        btn.className = "w-full mt-3 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-xs border bg-amber-50 hover:bg-amber-100/80 border-amber-300/80 text-amber-900";
-        ico.innerText = "bookmark_add";
-        txt.innerText = "Carimbar Visita no Passaporte";
-    }
+    return PassportModule.atualizarEstadoBotaoCarimbo();
 }
-
 function atualizarInterfacePassaporte() {
-    const listaPois = obterListaPois();
-    const contador = document.getElementById('passaporte-contador');
-    const contadorDetalhe = document.getElementById('passaporte-contador-detalhe');
-    const barra = document.getElementById('passaporte-barra');
-    const listaRoteiros = document.getElementById('passaporte-roteiros-lista');
-    if (!contador || !barra || listaPois.length === 0) return;
-
-    const visitados = obterLocaisVisitados();
-    const totalPois = listaPois.length || 54;
-    const totalVisitados = visitados.length;
-    const porcentagem = Math.min(100, Math.round((totalVisitados / totalPois) * 100));
-
-    contador.innerText = `${totalVisitados}/${totalPois}`;
-    if (contadorDetalhe) contadorDetalhe.innerText = `${totalVisitados}/${totalPois}`;
-    barra.style.width = `${porcentagem}%`;
-
-    if (listaRoteiros && typeof roteiros !== 'undefined') {
-        let htmlR = '';
-        Object.keys(roteiros).forEach(chave => {
-            const rot = roteiros[chave];
-            if (!rot || !rot.routeIds) return;
-            const visitadosNoRoteiro = rot.routeIds.filter(id => visitados.includes(id)).length;
-            const totalNoRoteiro = rot.routeIds.length;
-            const concluido = totalNoRoteiro > 0 && visitadosNoRoteiro === totalNoRoteiro;
-
-            if (concluido) {
-                htmlR += `
-                    <div class="flex items-center justify-between py-1 px-1 bg-amber-100/70 border border-amber-300/70 rounded-lg my-1">
-                        <span class="flex items-center gap-1 font-bold text-amber-950 text-[10px]">
-                            🏆 ${rot.name}
-                        </span>
-                        <button onclick="exibirCertificado('${chave}')" class="text-[9px] bg-amber-800 hover:bg-amber-900 text-white font-bold px-2 py-0.5 rounded shadow-xs transition active:scale-95 flex items-center gap-1">
-                            Ver Certificado
-                        </button>
-                    </div>
-                `;
-            } else {
-                htmlR += `
-                    <div class="flex items-center justify-between py-0.5">
-                        <span class="flex items-center gap-1 font-medium text-amber-900">
-                            • ${rot.name}
-                        </span>
-                        <span class="font-bold text-amber-800/80">${visitadosNoRoteiro}/${totalNoRoteiro}</span>
-                    </div>
-                `;
-            }
-        });
-        listaRoteiros.innerHTML = htmlR;
-    }
+    return PassportModule.atualizarInterfacePassaporte();
+}
+function abrirModalPassaporte() {
+    return PassportModule.abrirModalPassaporte();
+}
+function fecharModalPassaporte() {
+    return PassportModule.fecharModalPassaporte();
+}
+function exibirCertificado(roteiroChave) {
+    return PassportModule.exibirCertificado(roteiroChave);
+}
+function fecharCertificado() {
+    return PassportModule.fecharCertificado();
+}
+function compartilharCertificado() {
+    return PassportModule.compartilharCertificado();
 }
 
-// ==========================================
-// PERFIL LOCAL
-// ==========================================
-
+// Modais Gerais, Auth & Onboarding (ModalsModule)
+function abrirSobre() {
+    return ModalsModule.abrirSobre();
+}
+function fecharSobre() {
+    return ModalsModule.fecharSobre();
+}
+function abrirModalPrivacidade() {
+    return ModalsModule.abrirModalPrivacidade();
+}
+function fecharModalPrivacidade() {
+    return ModalsModule.fecharModalPrivacidade();
+}
 function abrirModalAuth() {
-    const modal = document.getElementById('modal-auth');
-    if (!modal) return;
-
-    const divLogado = document.getElementById('auth-painel-logado');
-    const divNaoLogado = document.getElementById('auth-painel-naologado');
-
-    const tipoVisitante = typeof syncManager !== 'undefined'
-        ? syncManager.perfil?.tipoVisitante
-        : null;
-    const perfilConfigurado = Boolean(tipoVisitante && tipoVisitante !== 'nao_definido');
-    if (perfilConfigurado) {
-        if (divLogado) divLogado.classList.remove('hidden');
-        if (divNaoLogado) divNaoLogado.classList.add('hidden');
-
-        const elTipo = document.getElementById('auth-user-tipo');
-        if (elTipo) {
-            const mapTipo = {
-                morador: '🏠 Morador da Cidade',
-                turista_nacional: '✈️ Turista Brasileiro',
-                turista_internacional: '🌍 Turista Internacional',
-                nao_definido: 'Não especificado'
-            };
-            elTipo.innerText = mapTipo[syncManager.perfil.tipoVisitante] || 'Visitante';
-        }
-    } else {
-        if (divLogado) divLogado.classList.add('hidden');
-        if (divNaoLogado) divNaoLogado.classList.remove('hidden');
-    }
-
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
+    return ModalsModule.abrirModalAuth();
 }
-
 function fecharModalAuth() {
-    const modal = document.getElementById('modal-auth');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.setAttribute('aria-hidden', 'true');
-    }
+    return ModalsModule.fecharModalAuth();
 }
-
 function abrirConfiguracaoPerfilLocal() {
-    abrirModalOnboarding();
-    fecharModalAuth();
+    return ModalsModule.abrirConfiguracaoPerfilLocal();
 }
-
 function limparDadosLocaisMvp() {
-    if (!confirm('Deseja apagar perfil, passaporte, notas e telemetria armazenados neste dispositivo?')) return;
-
-    const prefixos = ['recife_mca_', 'mca_recife_'];
-    Object.keys(localStorage).forEach(chave => {
-        if (prefixos.some(prefixo => chave.startsWith(prefixo))) {
-            localStorage.removeItem(chave);
-        }
-    });
-
-    if (typeof store !== 'undefined') {
-        store.state.visitados = [];
-    }
-    alert('Os dados locais da aplicação foram apagados.');
-    location.reload();
+    return ModalsModule.limparDadosLocaisMvp();
 }
-
-// ==========================================
-// MODAL DE ONBOARDING: MORADOR VS TURISTA
-// ==========================================
-
 function abrirModalOnboarding() {
-    const modal = document.getElementById('modal-onboarding');
-    if (modal) modal.classList.remove('hidden');
+    return ModalsModule.abrirModalOnboarding();
 }
-
 function fecharModalOnboarding() {
-    const modal = document.getElementById('modal-onboarding');
-    if (modal) modal.classList.add('hidden');
+    return ModalsModule.fecharModalOnboarding();
 }
-
 function salvarOnboardingPerfil() {
-    const tipoEl = document.querySelector('input[name="onboarding-tipo"]:checked');
-    const cidadeEl = document.getElementById('onboarding-cidade');
-    const interesseEl = document.getElementById('onboarding-interesse');
-
-    const tipoVisitante = tipoEl ? tipoEl.value : 'turista_nacional';
-    const cidadeOrigem = cidadeEl ? cidadeEl.value.trim() : '';
-    const interessePrincipal = interesseEl ? interesseEl.value : 'historia';
-
-    if (typeof syncManager !== 'undefined') {
-        syncManager.atualizarPerfil({
-            tipoVisitante,
-            cidadeOrigem,
-            interessePrincipal
-        });
-        syncManager.atualizarIndicadorUI();
-    }
-
-    fecharModalOnboarding();
+    return ModalsModule.salvarOnboardingPerfil();
 }
 
-// ==========================================
-// PAINEL DE INTELIGÊNCIA DA CURADORIA (DASHBOARD)
-// ==========================================
-
-let filtroDashboardAtual = 'todos'; // 'todos' | 'morador' | 'turista'
-
+// Painel da Curadoria (DashboardModule)
 function abrirDashboardCuradoria() {
-    fetch('/api/curadoria', { credentials: 'same-origin' })
-        .then(response => {
-            if (response.status === 403) throw new Error('Forbidden');
-            return response.json();
-        })
-        .then(() => abrirModalDashboardCuradoria())
-        .catch(() => fecharDashboardCuradoria());
+    return DashboardModule.abrirDashboardCuradoria();
 }
-
 function abrirModalDashboardCuradoria() {
-    const modal = document.getElementById('modal-dashboard-curadoria');
-    if (!modal) return;
-    renderizarGraficosDashboard();
-    modal.classList.remove('hidden');
-    if (typeof toggleMenu === 'function' && document.getElementById('side-menu')?.style.right === '0px') {
-        toggleMenu();
-    }
+    return DashboardModule.abrirModalDashboardCuradoria();
 }
-
 function fecharDashboardCuradoria() {
-    const modal = document.getElementById('modal-dashboard-curadoria');
-    if (modal) modal.classList.add('hidden');
+    return DashboardModule.fecharDashboardCuradoria();
 }
-
 function filtrarDashboard(tipo) {
-    filtroDashboardAtual = tipo;
-    ['todos', 'morador', 'turista'].forEach(t => {
-        const btn = document.getElementById(`btn-dash-${t}`);
-        if (!btn) return;
-        if (t === tipo) {
-            btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white shadow-xs transition";
-        } else {
-            btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition";
-        }
-    });
-    renderizarGraficosDashboard();
+    return DashboardModule.filtrarDashboard(tipo);
+}
+function renderizarGraficosDashboard() {
+    return DashboardModule.renderizarGraficosDashboard();
 }
 
-function renderizarGraficosDashboard() {
-    const stats = (typeof telemetry !== 'undefined') ? telemetry.obterEstatisticas() : { acessos: {}, dwellTime: {} };
-    const listaPois = obterListaPois();
-    const listaAcessos = document.getElementById('dash-ranking-acessos');
-    const listaDwell = document.getElementById('dash-ranking-dwell');
-    const totalAcessosEl = document.getElementById('dash-total-acessos');
-    const totalDwellEl = document.getElementById('dash-total-dwell');
-    if (!listaAcessos || !listaDwell || listaPois.length === 0) return;
-
-    // MVP: segmentação disponível apenas como filtro de interface.
-    // Não há agregação remota; os indicadores usam somente dados locais desta sessão/dispositivo.
-    const multiplicador = filtroDashboardAtual === 'morador' ? 0.42 : (filtroDashboardAtual === 'turista' ? 0.58 : 1.0);
-
-    // 1. Mapeia e ordena POIs mais acessados
-    const rankingAcessos = listaPois.map(p => {
-        const id = String(p.id);
-        const contagemBase = stats.acessos[id] || 0;
-        const acessosAjustados = Math.round(contagemBase * multiplicador);
-        return {
-            id: p.id,
-            titulo: p.titulo,
-            categoria: p.categoria,
-            acessos: acessosAjustados
-        };
-    }).sort((a, b) => b.acessos - a.acessos);
-
-    const maxAcessos = rankingAcessos[0]?.acessos || 1;
-    let somaAcessos = 0;
-
-    let htmlA = '';
-    rankingAcessos.slice(0, 5).forEach((item, idx) => {
-        somaAcessos += item.acessos;
-        const pct = Math.round((item.acessos / maxAcessos) * 100);
-        htmlA += `
-            <div class="mb-2">
-                <div class="flex justify-between items-center text-xs mb-1">
-                    <span class="font-bold text-slate-800 truncate max-w-[200px]">${idx + 1}. ${item.titulo}</span>
-                    <span class="font-mono text-slate-600 font-bold">${item.acessos} acessos</span>
-                </div>
-                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div class="bg-rose-700 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                </div>
-            </div>
-        `;
-    });
-    listaAcessos.innerHTML = htmlA;
-    if (totalAcessosEl) totalAcessosEl.innerText = `${somaAcessos * 3} visualizações`;
-
-    // 2. Mapeia e ordena POIs com maior permanência (Dwell Time)
-    const rankingDwell = listaPois.map(p => {
-        const id = String(p.id);
-        const msBase = stats.dwellTime[id] || 0;
-        const msAjustado = Math.round(msBase * multiplicador);
-        const minutos = Math.round(msAjustado / 60000);
-        return {
-            id: p.id,
-            titulo: p.titulo,
-            minutos: minutos
-        };
-    }).sort((a, b) => b.minutos - a.minutos);
-
-    const maxDwell = rankingDwell[0]?.minutos || 1;
-    let htmlD = '';
-    rankingDwell.slice(0, 5).forEach((item, idx) => {
-        const pct = Math.round((item.minutos / maxDwell) * 100);
-        htmlD += `
-            <div class="mb-2">
-                <div class="flex justify-between items-center text-xs mb-1">
-                    <span class="font-bold text-slate-800 truncate max-w-[200px]">${idx + 1}. ${item.titulo}</span>
-                    <span class="font-mono text-emerald-800 font-bold">${item.minutos} min médios</span>
-                </div>
-                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div class="bg-emerald-600 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                </div>
-            </div>
-        `;
-    });
-    listaDwell.innerHTML = htmlD;
-    const totalDwellMinutos = listaPois.reduce((soma, p) => soma + ((stats.dwellTime[String(p.id)] || 0) / 60000), 0);
-    if (totalDwellEl) totalDwellEl.innerText = totalDwellMinutos > 0
-        ? `${Math.round(totalDwellMinutos)} min acumulados`
-        : 'Sem dados locais';
+// Gestos Touch (GesturesModule)
+function inicializarGestosBottomSheet() {
+    return GesturesModule.inicializarGestosBottomSheet();
 }

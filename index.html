@@ -262,6 +262,57 @@
                 <div class="pt-3 mt-3 border-t border-slate-100 text-[9px] text-slate-400 text-center font-medium">
                     Desenvolvido com integração em OpenStreetMap e tecnologias abertas de Web Mapping.
                 </div>
+                <div class="pt-2 text-center">
+                    <button onclick="abrirModalPrivacidade()" class="text-[10px] text-slate-500 hover:text-slate-800 underline transition font-medium">
+                        Aviso de Privacidade & Proteção de Dados (LGPD)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aviso de Privacidade (LGPD & GDPR) -->
+    <div id="modal-privacidade" class="hidden fixed inset-0 z-[4000] flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-labelledby="modal-privacidade-titulo">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onclick="fecharModalPrivacidade()"></div>
+        <div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 overflow-hidden">
+            <button onclick="fecharModalPrivacidade()" aria-label="Fechar Aviso de Privacidade" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-xl">shield</span>
+                </div>
+                <div>
+                    <h3 id="modal-privacidade-titulo" class="font-serif font-bold text-base text-slate-900 leading-tight">Privacidade & Proteção de Dados</h3>
+                    <p class="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">Conformidade com a LGPD e GDPR</p>
+                </div>
+            </div>
+            <div class="text-[11px] text-slate-600 space-y-3 leading-relaxed text-justify hide-scroll overflow-y-auto max-h-[50vh] pr-1">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                    <p class="font-bold text-slate-800 mb-1">🛡️ Arquitetura Local-First (Processamento no seu Aparelho):</p>
+                    <p class="text-[10px] text-slate-600">Suas notas pessoais, o histórico do Passaporte Cultural, as preferências de perfil e as métricas de visitação são salvas <strong>exclusivamente na memória do seu próprio navegador (localStorage)</strong>. Não mantemos banco de dados centralizado nem comercializamos qualquer dado.</p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                    <p class="font-bold text-slate-800 mb-1">📍 Geolocalização (GPS) Efêmera:</p>
+                    <p class="text-[10px] text-slate-600">A sua posição GPS é processada apenas na memória volátil (RAM) para calcular distâncias geodésicas (Haversine) e validar sua proximidade física (&lt; 75m) dos monumentos. <strong>Sua localização nunca é salva em servidores nem compartilhada com terceiros.</strong></p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                    <p class="font-bold text-slate-800 mb-1">🚫 Zero Cookies de Rastreamento:</p>
+                    <p class="text-[10px] text-slate-600">Não utilizamos Google Analytics, Meta/Facebook Pixel ou rastreadores de anúncios. Nenhum dado comportamental é transmitido para redes de publicidade.</p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                    <p class="font-bold text-slate-800 mb-1">🗑️ Seus Direitos (LGPD Art. 18):</p>
+                    <p class="text-[10px] text-slate-600">Você tem o direito de acessar e eliminar seus dados a qualquer momento. Basta utilizar a opção <strong>"Limpar Dados Locais"</strong> no menu de perfil ou limpar o cache do seu navegador.</p>
+                </div>
+                <div class="pt-2 text-[10px] text-slate-400 text-center">
+                    Encarregado / Curadoria: <strong>Tales Pedrosa</strong> (<a href="mailto:tales.pedrosa@gmail.com" class="text-rose-700 underline">tales.pedrosa@gmail.com</a>)<br/>
+                    Consulte o documento completo em <span class="font-mono text-slate-600">AVISO_DE_PRIVACIDADE.md</span>.
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                <button onclick="fecharModalPrivacidade()" class="bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-xl transition shadow-xs">
+                    Entendi e Concordo
+                </button>
             </div>
         </div>
     </div>
@@ -655,6 +706,14 @@
     <script src="js/dados.js"></script>
     <script src="js/map.js"></script>
     <script src="js/routes.js"></script>
+    <!-- Submódulos Especializados de UI Desacoplados (untangle-codebase) -->
+    <script src="js/ui/carousel.js"></script>
+    <script src="js/ui/audioguide.js"></script>
+    <script src="js/ui/notes.js"></script>
+    <script src="js/ui/passport.js"></script>
+    <script src="js/ui/modals.js"></script>
+    <script src="js/ui/dashboard.js"></script>
+    <script src="js/ui/gestures.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/sheets.js"></script>
     <script src="js/app.js"></script>

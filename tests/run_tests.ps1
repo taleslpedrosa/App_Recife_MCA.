@@ -129,8 +129,18 @@ Assert-Test "Dashboard: Funções de renderização analítica e filtro transver
 Write-Host "`n--- 6. TESTES DE DEPENDÊNCIAS & PRECACHE PWA ---" -ForegroundColor Yellow
 
 $sw = Get-Content "sw.js" -Raw
-Assert-Test "PWA: Versão de cache atualizada para museu-recife-v9" (
-    $sw -match "museu-recife-v9"
+Assert-Test "PWA: Versão de cache atualizada para museu-recife-v16" (
+    $sw -match "museu-recife-v16"
+)
+
+Assert-Test "Arquitetura Modular (untangle-codebase): Submódulos desacoplados de UI presentes" (
+    (Test-Path "js/ui/carousel.js") -and
+    (Test-Path "js/ui/audioguide.js") -and
+    (Test-Path "js/ui/notes.js") -and
+    (Test-Path "js/ui/passport.js") -and
+    (Test-Path "js/ui/modals.js") -and
+    (Test-Path "js/ui/dashboard.js") -and
+    (Test-Path "js/ui/gestures.js")
 )
 
 Assert-Test "PWA: Novos módulos (telemetry.js, sync.js) incluídos no ASSETS_ESTRUTURAIS" (

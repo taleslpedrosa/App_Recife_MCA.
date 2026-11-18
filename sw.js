@@ -1,4 +1,4 @@
-const CACHE_NAME = 'museu-recife-v15';
+const CACHE_NAME = 'museu-recife-v16';
 
 const ASSETS_ESTRUTURAIS = [
     './',
@@ -13,6 +13,13 @@ const ASSETS_ESTRUTURAIS = [
     './css/style.css',
     './js/map.js',
     './js/routes.js',
+    './js/ui/carousel.js',
+    './js/ui/audioguide.js',
+    './js/ui/notes.js',
+    './js/ui/passport.js',
+    './js/ui/modals.js',
+    './js/ui/dashboard.js',
+    './js/ui/gestures.js',
     './js/ui.js',
     './js/sheets.js',
     './js/app.js',

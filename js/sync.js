@@ -28,6 +28,10 @@ class SyncManager {
         this.atualizarIndicadorUI();
     }
 
+    autenticar(dados = {}) {
+        return this.atualizarPerfil(dados);
+    }
+
     atualizarPerfil(dados) {
         this.perfil = {
             ...this.perfil,
